@@ -37,6 +37,9 @@ props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (
   graphics (DocMap, Chart, type). AI images only as a last resort, each listed in `CREDITS.md` with why.
   No staged stock (no Pexels people, actors, reenactments). Unclear rights are OK, but list them in `CREDITS.md`; skip
   "all rights reserved".
+- **No slideshow (producer, 2026-10-16).** Text alone on a plain background (QuoteText/ListWords/BigSerif on
+  Black/ConcreteWall/Paper, no film/print/doc/map/chart) looks like a PowerPoint: ≤ 5 % of the runtime, never two in
+  a row, never the narration itself as text. Type sits on top of real film or photos. `validate.py` errors past it.
 - **Never zoom film to fill.** 4:3 is padded automatically by `F` (reads `media.json`). Crop only watermark or
   timecode strips (`tools/cut.py --crop`).
 - **Cuts:** a picture changes only on a sentence end, a comma break in a spoken list, or a pause ≥ 0.3 s. Every
@@ -59,7 +62,8 @@ props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (
 
 Split the transcript into beats (one sentence or spoken list each). For each beat, write the time range, the
 line, the plane (sec. 3 of EDITING_RULES: filmed? → film; named? → print + NameStrip; geography → DocMap;
-document → DocCard; numbers → Chart/BigSerif; list → ListWords or a cut per item; argument → type), and what to
+document → DocCard; numbers → Chart, or BigSerif over film; list → a film/photo cut per item; argument → real film/photos of
+what it is about, Highlight over them; never a text-only screen), and what to
 source. Mark the hook (first ~35 s: fast montage of the strongest film), the 3–6 big turns for burns, and boards
 that hold an argument for 8–15 s.
 

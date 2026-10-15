@@ -10,7 +10,8 @@ The video is built like an **investigator's desk**, not a "documentary with B-ro
 
 - **Archive film** is the *world*: what happened.
 - **Paper** is the *evidence*: prints, document scans, maps and notes on a wall, desk or paper board.
-- **Type** is the *verdict*: one word, number or name stamped the moment the narrator says it.
+- **Type** is the *verdict*: one word, number or name stamped the moment the narrator says it, **over film or a
+  print**, never as a screen of its own.
 
 Moving between these three planes means something. Film → board says "now look at the proof". Board → film says
 "and this is what it caused".
@@ -56,9 +57,20 @@ Moving between these three planes means something. Film → board says "now look
 3. **Geography (journey, border, spread, territory)?** → `DocMap`. Not for biography lines ("born in X").
 4. **A document is quoted or named (a law, treaty, letter, headline)?** → `DocCard` with the real scan, the quoted
    words marked as they are spoken.
-5. **Numbers the script gives?** → `Chart` (line or bars) landing on the spoken figures, or `BigSerif` for one number.
-6. **A list** ("geography, tribe, history") → `ListWords` / `KraftNote` one item per word, or a fast film cut per item.
-7. **A quote or the argument itself** → `QuoteText` word by word on black/concrete, `Highlight` over film.
+5. **Numbers the script gives?** → `Chart` (line or bars) landing on the spoken figures, or `BigSerif` for one number
+   **over film or a print** of what the number counts (bank crowds under a bank count, bread lines under jobless %).
+6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`
+   on it). `ListWords` / `KraftNote` only on top of a picture.
+7. **A quote or the argument itself** → film or real photos of what the line is about (its era, its people, its
+   places, its objects), with `Highlight` over the film for the key words. Abstract lines ("money vanished", "trust
+   broke") still get real pictures: empty tills, closed banks, crowds, faces, the objects named.
+
+**HOUSE: no slideshow (producer, 2026-10-16).** Text alone on `Black`, `ConcreteWall` or `Paper` (QuoteText /
+ListWords / BigSerif with no film, print, document, map or chart) makes the video look like a PowerPoint. Never put
+the narration itself on screen as text. Text-only screens may total at most **5 % of the runtime** and never two in a
+row; `validate.py` errors past that and lists them. When film is thin, climb the ladder: other searches → the same
+event from another angle → real photos/scans → documents → map/chart → AI image (listed in CREDITS.md) → only then
+type.
 
 **HOUSE media rules:**
 - Real media first: archive.org film, then Wikimedia Commons photos/scans/documents, then graphics (map, chart,

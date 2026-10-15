@@ -4,7 +4,8 @@
 
 ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missing or shorter than its scene,
        a missing photo/doc, banned layers (MapBlinds, TitleCard, Epigraph, Flash, Ribbon), burns on film->film,
-       a picture change in the middle of a sentence (outside the hook), the same clip/photo twice after the hook.
+       a picture change in the middle of a sentence (outside the hook), the same clip/photo twice after the hook,
+       text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, film stills over 9 s with nothing new.
 """
 import argparse
@@ -98,6 +99,19 @@ for sid, fr, to, en, b in scenes:
         seen.setdefault(src, (sid, fr, src))
     if has_film and to - fr > 9 and b.count('<F ') == 1 and 'PhotoPrint' not in b and fr >= a.hook:
         Wn(f'{sid}: one film shot for {to - fr:.1f} s; split it on a phrase end if the narration moves on')
+# no slideshow: type alone on Black/ConcreteWall/Paper (no film, print, document, map or chart under it)
+PIC = re.compile(r'<(F|Film|PhotoPrint|DocCard|DocMap|Chart)\b')
+bare = [(sid, fr, to) for sid, fr, to, en, b in scenes if not PIC.search(b)]
+for (s1, f1, t1), (s2, f2, t2) in zip(bare, bare[1:]):
+    if abs(t1 - f2) < 0.001:
+        E(f'{s1} -> {s2}: two text-only screens in a row at {f1:.1f} s (put real film or a photo under the type)')
+bare_s = sum(t - f for _, f, t in bare)
+if END and bare_s > 0.05 * END:
+    E(f'text-only screens are {bare_s:.0f} s = {100 * bare_s / END:.0f} % of the video (max 5 %: it looks like a '
+      f'slideshow). Replace with real film/photos: ' + ', '.join(f'{sid}@{f:.0f}s' for sid, f, _ in bare))
+elif bare:
+    Wn(f'{len(bare)} text-only screens, {bare_s:.0f} s ({100 * bare_s / max(END, 1):.1f} %): '
+       + ', '.join(sid for sid, _, _ in bare))
 if scenes and abs(prev_to - END) > 0.001:
     E(f'last scene ends {prev_to}, END is {END}')
 
