@@ -1,0 +1,27 @@
+{
+  "name": "sadat-style-renderer",
+  "version": "1.0.0",
+  "description": "GitHub Actions renderer for Sadat-style documentary cuts (each video arrives as a release zip with its own src/ and public/)",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@remotion/cli": "4.0.463",
+    "@remotion/google-fonts": "4.0.463",
+    "d3-geo": "^3.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.463",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/react": "19.2.7",
+    "@types/topojson-client": "^3.1.5",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  }
+}
