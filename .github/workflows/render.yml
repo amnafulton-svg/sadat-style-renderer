@@ -1,9 +1,10 @@
 name: Render Sadat-style videos
 
 # Every release zip is one video: its own src/ (Remotion code + timeline), public/ (media) and
-# video.json {composition, frames, fps}. Picture renders in parallel muted chunks; the sound is
-# rendered once by Remotion itself (audio-only), so every <Audio> in the TSX is in the mix.
-# No subtitles: the compositions have none.
+# video.json {composition, frames, fps}. Each chunk renders picture AND its slice of sound (h264-mkv,
+# lossless PCM), so every <Audio> in the TSX is in the mix exactly as Studio plays it. The combine
+# step joins the pictures without re-encoding and the PCM slices sample-exact (tested: zero
+# difference to one straight render), then encodes the sound once. No subtitles.
 
 on:
   workflow_dispatch:
@@ -23,7 +24,7 @@ on:
         type: number
         default: 20
       chunks_from_run:
-        description: "Optional: run ID whose chunks + audio to reuse (only stitches)"
+        description: "Optional: run ID whose chunks to reuse (only stitches)"
         required: false
         type: string
         default: ""
@@ -84,7 +85,7 @@ jobs:
           set -euo pipefail
           command -v ffprobe >/dev/null || { sudo apt-get update; sudo apt-get install -y ffmpeg; }
           mkdir -p out
-          out="out/${{ matrix.stem }}_chunk_${{ matrix.chunk_id }}.mp4"
+          out="out/${{ matrix.stem }}_chunk_${{ matrix.chunk_id }}.mkv"
           range="${{ matrix.frames }}"
           fps="$(node -p "require('./video.json').fps")"
           expected="$(node -p "(${range#*-} - ${range%-*} + 1) / $fps")"
@@ -92,10 +93,10 @@ jobs:
             echo "attempt $attempt/3"
             rm -f "$out"
             if npx remotion render src/index.ts "${{ matrix.composition }}" "$out" \
-                 --codec=h264 --crf=21 --muted --frames="$range" --concurrency=2 --timeout=120000; then
+                 --codec=h264-mkv --crf=21 --frames="$range" --concurrency=2 --timeout=120000; then
               got="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$out" || true)"
               if node -e 'const [a,e]=process.argv.slice(1).map(Number); process.exit(Math.abs(a-e)<=0.5?0:1)' "$got" "$expected" && \
-                 ffmpeg -hide_banner -v error -xerror -err_detect explode -i "$out" -map 0:v:0 -c copy -f null -; then
+                 ffmpeg -hide_banner -v error -xerror -err_detect explode -i "$out" -map 0:v:0 -map 0:a:0 -c copy -f null -; then
                 echo "chunk ok: ${got}s / ${expected}s"; exit 0
               fi
             fi
@@ -105,47 +106,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: chunk-${{ matrix.stem }}-${{ matrix.chunk_id }}
-          path: out/${{ matrix.stem }}_chunk_${{ matrix.chunk_id }}.mp4
-          if-no-files-found: error
-          retention-days: 3
-
-  render-audio:
-    name: ${{ matrix.stem }} sound
-    needs: discover
-    if: inputs.chunks_from_run == ''
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.discover.outputs.videos) }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - name: Unpack video
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash .github/scripts/unpack.sh "${{ inputs.release_tag }}" "${{ matrix.zip_name }}"
-      - name: Render the whole soundtrack (narration, sfx, burn sounds, music)
-        run: |
-          set -euo pipefail
-          mkdir -p out
-          npx remotion render src/index.ts "${{ matrix.composition }}" "out/${{ matrix.stem }}_audio.m4a" \
-            --codec=aac --audio-bitrate=192k --concurrency="$(nproc)" --timeout=120000
-          ls -lh out
-      - uses: actions/upload-artifact@v4
-        with:
-          name: audio-${{ matrix.stem }}
-          path: out/${{ matrix.stem }}_audio.m4a
+          path: out/${{ matrix.stem }}_chunk_${{ matrix.chunk_id }}.mkv
           if-no-files-found: error
           retention-days: 3
 
   combine:
     name: Combine ${{ matrix.stem }}
-    needs: [discover, render-chunks, render-audio]
-    if: always() && needs.discover.result == 'success' && ((needs.render-chunks.result == 'success' && needs.render-audio.result == 'success') || inputs.chunks_from_run != '')
+    needs: [discover, render-chunks]
+    if: always() && needs.discover.result == 'success' && (needs.render-chunks.result == 'success' || inputs.chunks_from_run != '')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -158,12 +126,6 @@ jobs:
           path: chunks
           run-id: ${{ inputs.chunks_from_run || github.run_id }}
           github-token: ${{ github.token }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: audio-${{ matrix.stem }}
-          path: audio
-          run-id: ${{ inputs.chunks_from_run || github.run_id }}
-          github-token: ${{ github.token }}
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Stitch chunks and add sound
@@ -172,13 +134,16 @@ jobs:
           set -euo pipefail
           stem="${{ matrix.stem }}"; fps="${{ matrix.fps }}"; frames="${{ matrix.frames }}"
           expected="$(node -p "$frames / $fps")"
-          mapfile -t files < <(find chunks -name "${stem}_chunk_*.mp4" | sort)
+          mapfile -t files < <(find chunks -name "${stem}_chunk_*.mkv" | sort)
           if [ -z "${{ inputs.chunks_from_run }}" ] && [ "${#files[@]}" -ne "${{ matrix.chunk_count }}" ]; then
             echo "::error::expected ${{ matrix.chunk_count }} chunks, got ${#files[@]}"; exit 1
           fi
-          mkdir -p ts out; : > list.txt
+          mkdir -p ts wav out; : > list.txt; : > wavs.txt
           for f in "${files[@]}"; do
-            t="ts/$(basename "$f" .mp4).ts"
+            t="ts/$(basename "$f" .mkv).ts"
+            w="wav/$(basename "$f" .mkv).wav"
+            ffmpeg -hide_banner -y -v error -xerror -i "$f" -map 0:a:0 -c:a pcm_s16le "$w"
+            echo "file '$(realpath "$w")'" >> wavs.txt
             ffmpeg -hide_banner -y -v error -xerror -err_detect explode -i "$f" -map 0:v:0 -an -c:v copy -bsf:v h264_mp4toannexb -f mpegts "$t"
             n="$(ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 "$f")"
             echo "file '$(realpath "$t")'" >> list.txt
@@ -188,8 +153,9 @@ jobs:
           check() { node -e 'const [l,a,e]=process.argv.slice(1); const d=Math.abs(+a-+e); if(!isFinite(+a)||d>1){console.error(`::error::${l} ${a}s vs ${e}s`);process.exit(1)} console.log(`${l} ok: ${a}s / ${e}s`)' "$1" "$2" "$expected"; }
           dur() { ffprobe -v error -show_entries format=duration -of csv=p=0 "$1"; }
           check "silent video" "$(dur "out/${stem}_silent.mp4")"
-          check "sound" "$(dur "audio/${stem}_audio.m4a")"
-          ffmpeg -hide_banner -y -v error -xerror -i "out/${stem}_silent.mp4" -i "audio/${stem}_audio.m4a" \
+          ffmpeg -hide_banner -y -v error -xerror -f concat -safe 0 -i wavs.txt -c:a aac -b:a 192k "out/${stem}_audio.m4a"
+          check "sound" "$(dur "out/${stem}_audio.m4a")"
+          ffmpeg -hide_banner -y -v error -xerror -i "out/${stem}_silent.mp4" -i "out/${stem}_audio.m4a" \
             -map 0:v:0 -map 1:a:0 -c copy -t "$expected" -movflags +faststart "out/${stem}.mp4"
           check "final" "$(dur "out/${stem}.mp4")"
           ffmpeg -hide_banner -v error -xerror -err_detect explode -i "out/${stem}.mp4" -map 0:v:0 -map 0:a:0 -c copy -f null -

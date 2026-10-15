@@ -22,11 +22,11 @@ Sadat-style videos` workflow and prints the run link. Download the MP4 from that
 
 ## How the workflow renders
 
-- **Picture:** muted frame-range chunks render in parallel and are checked for length and stream damage, retried up to 3×.
-- **Sound:** Remotion renders the whole soundtrack once, audio-only, so every `<Audio>` in the TSX lands in the mix
-  exactly as Studio plays it: narration, SFX, burn sounds and music. There is no hand-kept mix script.
-- **Combine:** the chunks are concatenated without re-encoding and muxed with the sound. Durations are checked
-  against `frames / fps`.
-- **Re-stitch only:** rerun with `chunks_from_run=<run id>` to reuse the chunks and sound from an earlier run.
+- **Chunks:** frame-range chunks render in parallel, picture and sound together (`h264-mkv` with lossless PCM). Each
+  is checked for length and stream damage and retried up to 3×. Every `<Audio>` in the TSX lands in the mix exactly
+  as Studio plays it: narration, SFX, burn sounds and music. There is no hand-kept mix script.
+- **Combine:** the pictures are concatenated without re-encoding. The PCM slices join sample-exact (tested: zero
+  difference from one straight render) and are encoded to AAC once. Durations are checked against `frames / fps`.
+- **Re-stitch only:** rerun with `chunks_from_run=<run id>` to reuse the chunks from an earlier run.
 - **Fonts:** Bahnschrift maps to Barlow Semi Condensed, and Georgia maps to Gelasio. Google fonts load at render time.
 - **Subtitles:** none.
