@@ -69,12 +69,13 @@ Moving between these three planes means something. Film → board says "now look
 ListWords / BigSerif with no film, print, document, map or chart) makes the video look like a PowerPoint. Never put
 the narration itself on screen as text. Text-only screens may total at most **5 % of the runtime** and never two in a
 row; `validate.py` errors past that and lists them. When film is thin, climb the ladder: other searches → the same
-event from another angle → real photos/scans → documents → map/chart → AI image (listed in CREDITS.md) → only then
-type.
+event from another angle → real photos/scans → documents → map/chart → only then type. Never an AI image.
 
 **HOUSE media rules:**
-- Real media first: archive.org film, then Wikimedia Commons photos/scans/documents, then graphics (map, chart,
-  type). AI images only as the very last resort, each one listed in `CREDITS.md` with the reason.
+- Real media only: archive.org film, then Wikimedia Commons photos/scans/documents, then graphics (map, chart,
+  type). **No AI images, ever (producer, 2026-10-16)** — not even as a last resort.
+- The outro (the closing "subscribe ... see you in the next one" call to action) plays **2 Pexels stock videos**
+  without people (calm shots that fit the topic: sky, sea, the place, old buildings), one after the other.
 - Era-matched: no 1950s film under a 1990s line.
 - No staged stock (no Pexels people, actors, reenactments). Stock only for a real named place, without people.
 - Rights: public domain / CC / US government / Prelinger first. Unclear rights are OK; list them in `CREDITS.md`.

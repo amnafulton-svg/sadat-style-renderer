@@ -34,7 +34,8 @@ props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (
 
 - **Script is the source.** Build what it says; no fact-checking, no rewording.
 - **Real media first**, matched to the narration's era: archive.org film → Commons photos/scans/documents →
-  graphics (DocMap, Chart, type). AI images only as a last resort, each listed in `CREDITS.md` with why.
+  graphics (DocMap, Chart, type). **No AI images, ever** (producer, 2026-10-16). The outro (closing call to action)
+  plays 2 Pexels stock videos without people.
   No staged stock (no Pexels people, actors, reenactments). Unclear rights are OK, but list them in `CREDITS.md`; skip
   "all rights reserved".
 - **No slideshow (producer, 2026-10-16).** Text alone on a plain background (QuoteText/ListWords/BigSerif on
