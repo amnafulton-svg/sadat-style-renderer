@@ -78,11 +78,16 @@ python tools/source.py ia-files <identifier>               # its video files
 python tools/source.py ia-get <identifier> "<file>" <topic>
 python tools/source.py sheet _cache/<topic>/<file> _sheets/<topic>.jpg --every 1 --start 0 --count 60
 python tools/source.py commons "<query>" <key> [--video]   # photos/scans + _cache/commons/<key>_sheet.jpg + licence json
+python tools/source.py serper "<query>" <key>              # Google Images (Serper) - ONLY when Commons found nothing usable
 python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:X:Y]   # -> public/footage + media.json
 ```
 
 - Look at every film sheet before cutting. Avoid title cards, watermarks, timecode, black or blurry stretches, and the wrong era.
   Each clip must be at least as long as its scene (+0.9 s for dissolves).
+- **Photo order (producer, 2026-10-16):** archive.org and Commons first (try 2-3 Commons queries). Only when they
+  find nothing usable for the line, run `source.py serper` (Google Images, paid credits: one or two queries per
+  gap, not for every line). Check its sheet hard: real period photos/documents only; no watermarks, stock-site
+  logos, AI art, modern reenactments or wrong era. Web images have unclear rights: list them in `CREDITS.md`.
 - Photos go to `public/photos/`, document scans to `public/docs/` (crop scanner edges and colour bars off).
   Copy from `_cache` with a short descriptive name.
 - For a long script, give each section to a subagent in parallel (general-purpose). Give each one its lines, the

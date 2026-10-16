@@ -5,11 +5,15 @@
     python tools/source.py ia-get <identifier> "<file>" <topic>   # -> _cache/<topic>/<name>.<ext>
     python tools/source.py commons "<query>" <key> [--rows 8] [--video]
           # -> _cache/commons/<key>_<n>.*, <key>.json (title/license/date/page), <key>_sheet.jpg
+    python tools/source.py serper "<query>" <key> [--rows 10]
+          # Google Images via Serper: ONLY after Commons (and archive.org) found nothing usable for the line
+          # -> _cache/serper/<key>_<n>.*, <key>.json (title/page/domain/size), <key>_sheet.jpg
     python tools/source.py sheet <video-file-or-url> out.jpg [--start S] [--every 1] [--count 40]
           # contact sheet with the time on every tile, to pick clean in-points
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -104,6 +108,62 @@ def commons(q, key, rows, video):
         print('sheet:', CACHE / 'commons' / f'{key}_sheet.jpg')
 
 
+STOCK_SITES = ('shutterstock', 'alamy', 'gettyimages', 'istockphoto', 'dreamstime', 'depositphotos', '123rf',
+               'stock.adobe', 'agefotostock', 'bridgemanimages', 'pinterest', 'freepik', 'vecteezy', 'lookandlearn')
+
+
+def serper_key():
+    """SERPER_API_KEY from the environment, else from the classic pipeline's ~/yt/.env (never printed)."""
+    if os.environ.get('SERPER_API_KEY'):
+        return os.environ['SERPER_API_KEY'].strip()
+    env = Path.home() / 'yt' / '.env'
+    if env.exists():
+        for line in env.read_text(encoding='utf8', errors='replace').splitlines():
+            if line.strip().startswith('SERPER_API_KEY='):
+                return line.split("=", 1)[1].strip().strip("\"'")
+    sys.exit('SERPER_API_KEY is not set (and not in ~/yt/.env)')
+
+
+def serper(q, key, rows):
+    """Google Images through Serper, the fallback after Commons: watermarked stock sites skipped, small images skipped."""
+    req = urllib.request.Request('https://google.serper.dev/images', method='POST',
+                                 data=json.dumps({'q': q, 'gl': 'us', 'hl': 'en', 'num': 30}).encode('utf8'),
+                                 headers={'X-API-KEY': serper_key(), 'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        hits = json.loads(r.read().decode('utf8')).get('images') or []
+    out, files = [], []
+    for h in hits:
+        if len(out) >= rows:
+            break
+        src, page = h.get('imageUrl', ''), h.get('link', '')
+        domain = urllib.parse.urlparse(page).netloc.lower().removeprefix('www.')
+        w, ht = int(h.get('imageWidth') or 0), int(h.get('imageHeight') or 0)
+        if not src.startswith('http') or any(s in domain or s in src for s in STOCK_SITES) or w < 800 or min(w, ht) < 450:
+            continue
+        ext = Path(urllib.parse.urlparse(src).path).suffix.lower()
+        dest = CACHE / 'serper' / f'{key}_{len(out)}{ext if ext in (".jpg", ".jpeg", ".png", ".webp") else ".jpg"}'
+        try:
+            download(src, dest)
+            from PIL import Image
+            Image.open(dest).verify()
+        except Exception as e:
+            print('  fail', domain, str(e)[:80])
+            dest.unlink(missing_ok=True)
+            continue
+        rec = {'file': dest.relative_to(ROOT).as_posix(), 'title': h.get('title', ''), 'page': page, 'domain': domain,
+               'size': f'{w}x{ht}', 'license': 'unclear (web image: list in CREDITS.md)'}
+        out.append(rec)
+        files.append(dest)
+        print(f"  {dest.name:<22} {rec['size']:<11} {domain:<28} {rec['title'][:60]}")
+    (CACHE / 'serper').mkdir(parents=True, exist_ok=True)
+    json.dump(out, open(CACHE / 'serper' / f'{key}.json', 'w', encoding='utf8'), indent=1, ensure_ascii=False)
+    if files:
+        sheet_images(files, CACHE / 'serper' / f'{key}_sheet.jpg')
+        print('sheet:', CACHE / 'serper' / f'{key}_sheet.jpg')
+    else:
+        print('no usable images')
+
+
 def font(n):
     from PIL import ImageFont
     for f in ('arial.ttf', 'DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/Library/Fonts/Arial.ttf'):
@@ -171,6 +231,7 @@ p = sp.add_parser('ia-files'); p.add_argument('id')
 p = sp.add_parser('ia-get'); p.add_argument('id'); p.add_argument('file'); p.add_argument('topic')
 p = sp.add_parser('commons'); p.add_argument('q'); p.add_argument('key')
 p.add_argument('--rows', type=int, default=8); p.add_argument('--video', action='store_true')
+p = sp.add_parser('serper'); p.add_argument('q'); p.add_argument('key'); p.add_argument('--rows', type=int, default=10)
 p = sp.add_parser('sheet'); p.add_argument('src'); p.add_argument('out')
 p.add_argument('--start', type=float, default=0); p.add_argument('--every', type=float, default=1)
 p.add_argument('--count', type=int, default=40)
@@ -183,5 +244,7 @@ elif a.cmd == 'ia-get':
     ia_get(a.id, a.file, a.topic)
 elif a.cmd == 'commons':
     commons(a.q, a.key, a.rows, a.video)
+elif a.cmd == 'serper':
+    serper(a.q, a.key, a.rows)
 else:
     sheet_video(a.src, a.out, a.start, a.every, a.count)

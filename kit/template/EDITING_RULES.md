@@ -69,7 +69,8 @@ Moving between these three planes means something. Film → board says "now look
 ListWords / BigSerif with no film, print, document, map or chart) makes the video look like a PowerPoint. Never put
 the narration itself on screen as text. Text-only screens may total at most **5 % of the runtime** and never two in a
 row; `validate.py` errors past that and lists them. When film is thin, climb the ladder: other searches → the same
-event from another angle → real photos/scans → documents → map/chart → only then type. Never an AI image.
+event from another angle → real photos/scans (Commons first, then `source.py serper` Google Images when Commons has nothing) → documents →
+map/chart → only then type. Never an AI image.
 
 **HOUSE media rules:**
 - Real media only: archive.org film, then Wikimedia Commons photos/scans/documents, then graphics (map, chart,
