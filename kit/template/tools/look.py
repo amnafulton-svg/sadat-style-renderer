@@ -6,6 +6,11 @@ Opening sheets and stills in the editing session keeps every picture in its cont
 read it again (2026-10-17 measure: images = ~41% of a video's cost). This runs a separate headless Claude (Sonnet)
 that looks once and prints short verdicts; the editor reads only those lines. Batches of 6 images, 3 at a time.
 Every call is logged to _work/look_log.jsonl (images, seconds, $).
+
+Lean session (2026-10-17): the helper gets its own short system prompt, only the Read tool, and no settings, MCP,
+skills or hooks. Claude Code's default system prompt + tool list cost ~21k cache-write tokens per call (bunker video:
+440 calls = 9.2M tokens, $46) and says nothing about judging pictures; verdicts were compared side by side on the
+bunker sheets before the switch.
 """
 import argparse
 import concurrent.futures as cf
@@ -19,6 +24,10 @@ from pathlib import Path
 
 MODEL = "claude-sonnet-5-5"
 BATCH = 6
+
+SYSTEM = ("You check images for a documentary editor. You have one tool, Read, which opens an image file. Open "
+          "every image you are given before answering; never answer from file names. Follow the answer format in the "
+          "message exactly: one short line per image, and for contact sheets one line per tile range.")
 
 RULES = """You are the eyes of a documentary editor who cannot see images. Open every image listed below with the Read
 tool, then answer the editor's question for each one. The editor acts on your words alone, so be exact.
@@ -45,8 +54,8 @@ def ask(question, note, imgs, cwd):
               + (f"\nContext from the editor:\n{note}\n" if note else "")
               + "\nImages:\n" + "\n".join(str(p) for p in imgs))
     cmd = [claude_bin(), "-p", "--model", MODEL, "--output-format", "json", "--permission-mode", "default",
-           "--allowedTools", "Read", "--disallowedTools", "Bash", "Write", "Edit", "Agent", "WebFetch", "WebSearch",
-           "--add-dir", str(cwd)]
+           "--system-prompt", SYSTEM, "--tools", "Read", "--allowedTools", "Read", "--setting-sources", "",
+           "--strict-mcp-config", "--disable-slash-commands", "--add-dir", str(cwd)]
     for d in {p.parent for p in imgs}:
         cmd += ["--add-dir", str(d)]
     t0 = time.time()

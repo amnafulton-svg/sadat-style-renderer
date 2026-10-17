@@ -89,11 +89,12 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   `python tools/look.py "<what to judge>" <images…> --note "<the narration lines / what each is for>"`
   A Sonnet helper looks once and prints one line per image or tile range (what it shows, clean or the flaw). Act
   on those lines. Open one image yourself only when it says UNSURE, or for the opening shot.
-- **Long text = `tools/read.py` (Haiku reader, same cost rule).** Don't `cat`/`sed`/`grep`/loop long output (JSON,
-  logs, transcripts, search results, media.json, latam.tsx) into the session. Ask instead:
-  `python tools/read.py "<question>" <files…>` or `<command> | python tools/read.py "<question>"`.
-  It answers with only the lines asked for (short text passes through as is). Read exact lines directly
-  (`sed -n`) only right before editing them.
+- **Dumps = `tools/read.py` (Haiku reader, same cost rule).** Never `cat`, loop over or grep whole dumps into the
+  session: search results, JSON (media.json, words/transcripts), logs, loops over many files, latam.tsx. Pipe them
+  instead: `python tools/read.py "<question>" <files…>` or `<command> | python tools/read.py "<question>"`. It
+  answers with only the lines asked for (short text passes through as is). 2026-10-17 bunker measure: `cat`/`for`/
+  `awk`/`grep` output was still ~37% of what editors re-read. Your own section code, plan and HANDOFF.md you read
+  directly, but only the lines you need (`sed -n`), right before you edit them.
 - Check every film sheet (look.py) before cutting. Avoid title cards, watermarks, timecode, black or blurry stretches, and the wrong era.
   Each clip must be at least as long as its scene (+0.9 s for dissolves).
 - **Photo order (producer, 2026-10-16):** archive.org and Commons first (try 2-3 Commons queries). Only when they
@@ -108,8 +109,9 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   round looked "not started" 10 s in, a second round doubled every editor). A new editor writes no files for its
   first minutes; it is alive while `_work/turns/<agent id>` changed in the last 10 min. Give each one its lines, the
   plan rows and these rules, and have it return chosen clip in-points and photo files. Every brief says, word for
-  word: "Never Read an image: judge sheets, photos and stills with `python tools/look.py`. Ask long text with
-  `python tools/read.py`. Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
+  word: "Never Read an image: judge sheets, photos and stills with `python tools/look.py`. Never cat, loop or grep
+  whole dumps (search results, JSON, logs, transcripts, latam.tsx): pipe them to `python tools/read.py "<question>"`.
+  Read your own section code and plan directly, only the lines you need. Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
   left, problems). After ~80 tool calls a `[turn guard]` message from the producer's project hook tells you to
   wrap up: then finish the step in hand, update HANDOFF.md and end with `HANDOFF: _parts/<section>/HANDOFF.md`."
   When an editor ends with `HANDOFF:`, start a fresh section editor with the same brief plus "read that HANDOFF.md
