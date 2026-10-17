@@ -54,8 +54,8 @@ props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (
   film → film. Burn numbers 1, 4, 5, 6, 11, 12, 13.
 - **Sound:** narration only + the burns' projector sound. No synthesised SFX. Music only when the producer gives a
   real library track. **No subtitles.**
-- **Quality over speed:** I check sheets and stills by eye (or with checker subagents) before calling anything
-  done.
+- **Quality over speed:** every sheet and still gets checked before anything is called done, through
+  `tools/look.py` (below), and I open an image myself when a verdict says UNSURE.
 - **Never render unless the producer asks.** Preview = Remotion Studio (`npm run studio`). The producer downloads
   the MP4 from the GitHub Actions run, so don't download it to the PC.
 
@@ -82,7 +82,13 @@ python tools/source.py serper "<query>" <key>              # Google Images (Serp
 python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:X:Y]   # -> public/footage + media.json
 ```
 
-- Look at every film sheet before cutting. Avoid title cards, watermarks, timecode, black or blurry stretches, and the wrong era.
+- **Looking at images = `tools/look.py` (cost rule, 2026-10-17).** Never open a sheet, still or photo with Read in
+  the editing session or a section editor: each opened image stays in the context and is paid for again on every
+  later turn (~41% of a video's cost). Instead:
+  `python tools/look.py "<what to judge>" <images…> --note "<the narration lines / what each is for>"`
+  A Sonnet helper looks once and prints one line per image or tile range (what it shows, clean or the flaw). Act
+  on those lines. Open one image yourself only when it says UNSURE, or for the opening shot.
+- Check every film sheet (look.py) before cutting. Avoid title cards, watermarks, timecode, black or blurry stretches, and the wrong era.
   Each clip must be at least as long as its scene (+0.9 s for dissolves).
 - **Photo order (producer, 2026-10-16):** archive.org and Commons first (try 2-3 Commons queries). Only when they
   find nothing usable for the line, run `source.py serper` (Google Images, paid credits: one or two queries per
@@ -91,10 +97,11 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
 - Photos go to `public/photos/`, document scans to `public/docs/` (crop scanner edges and colour bars off).
   Copy from `_cache` with a short descriptive name.
 - For a long script, give each section to a subagent in parallel (general-purpose). Give each one its lines, the
-  plan rows and these rules, and have it return chosen clip in-points and photo files. I still look at what they
-  pick.
+  plan rows and these rules, and have it return chosen clip in-points and photo files. Every brief says, word for
+  word: "Never Read an image: judge sheets, photos and stills with `python tools/look.py`." I check what they pick
+  with look.py too.
 - Write `CREDITS.md`: every source (archive.org id / Commons page), its licence, and the unclear-rights ones.
-- `python tools/sheets.py _sheets` makes review sheets of everything in public/. Look at all of them.
+- `python tools/sheets.py _sheets` makes review sheets of everything in public/. Check all of them with look.py.
 
 ## 5. Write the edit: `src/timeline/video.tsx`
 
@@ -120,7 +127,7 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
 1. `npx tsc --noEmit` passes.
 2. `python tools/validate.py`: zero ERRORs. Clear the WARNs or note why one stays.
 3. Stills of the whole cut: one per scene (mid-scene), plus the end frame of every map, chart and document card, and
-   each NameStrip: `node tools/stills.mjs _stills <t> <t> …`. Check each still against the line spoken there:
+   each NameStrip: `node tools/stills.mjs _stills <t> <t> …`. Check each still with `tools/look.py` (pass the line spoken at each still in `--note`):
    right subject and era, nothing clipped, labels readable and not colliding, no watermark or logo, 4:3 film padded,
    strips on the right person. Fix, then re-still the fixed ones.
 4. Then offer the Studio preview (`npm run studio`, opens localhost:3000) and the render.
