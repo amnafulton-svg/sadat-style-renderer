@@ -27,7 +27,8 @@ already in a project folder (it has `src/timeline/video.tsx`), skip this step.
 ## 1. Read first (every new session)
 
 `script.md`, `transcript.txt` (every word with its start second), `EDITING_RULES.md` (the grammar, house rules
-marked HOUSE), and `examples/latam.tsx` (a finished 6-minute cut: copy its patterns, not its media). Layer
+marked HOUSE), and `examples/latam.tsx` (a finished 6-minute cut: copy its patterns, not its media; section editors don't read it
+whole, they ask `tools/read.py` how it does a thing). Layer
 props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (`HistoricalMapSpec`, `ArchiveChart`).
 
 ## 2. House rules (never break these)
@@ -88,6 +89,11 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   `python tools/look.py "<what to judge>" <images…> --note "<the narration lines / what each is for>"`
   A Sonnet helper looks once and prints one line per image or tile range (what it shows, clean or the flaw). Act
   on those lines. Open one image yourself only when it says UNSURE, or for the opening shot.
+- **Long text = `tools/read.py` (Haiku reader, same cost rule).** Don't `cat`/`sed`/`grep`/loop long output (JSON,
+  logs, transcripts, search results, media.json, latam.tsx) into the session. Ask instead:
+  `python tools/read.py "<question>" <files…>` or `<command> | python tools/read.py "<question>"`.
+  It answers with only the lines asked for (short text passes through as is). Read exact lines directly
+  (`sed -n`) only right before editing them.
 - Check every film sheet (look.py) before cutting. Avoid title cards, watermarks, timecode, black or blurry stretches, and the wrong era.
   Each clip must be at least as long as its scene (+0.9 s for dissolves).
 - **Photo order (producer, 2026-10-16):** archive.org and Commons first (try 2-3 Commons queries). Only when they
@@ -98,8 +104,13 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   Copy from `_cache` with a short descriptive name.
 - For a long script, give each section to a subagent in parallel (general-purpose). Give each one its lines, the
   plan rows and these rules, and have it return chosen clip in-points and photo files. Every brief says, word for
-  word: "Never Read an image: judge sheets, photos and stills with `python tools/look.py`." I check what they pick
-  with look.py too.
+  word: "Never Read an image: judge sheets, photos and stills with `python tools/look.py`. Ask long text with
+  `python tools/read.py`. Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
+  left, problems). After ~80 tool calls a `[turn guard]` message from the producer's project hook tells you to
+  wrap up: then finish the step in hand, update HANDOFF.md and end with `HANDOFF: _parts/<section>/HANDOFF.md`."
+  When an editor ends with `HANDOFF:`, start a fresh section editor with the same brief plus "read that HANDOFF.md
+  first and carry on from it" (a fresh one re-reads far less than one long session). I check what they pick with
+  look.py too.
 - Write `CREDITS.md`: every source (archive.org id / Commons page), its licence, and the unclear-rights ones.
 - `python tools/sheets.py _sheets` makes review sheets of everything in public/. Check all of them with look.py.
 

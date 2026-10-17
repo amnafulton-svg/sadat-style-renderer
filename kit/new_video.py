@@ -6,6 +6,7 @@ Creates <dest>/<name>/ (default dest: the folder that holds this repo) from kit/
 public/audio/narration.mp3 and the script at script.md, installs the skill into <name>/.claude/skills, runs
 npm install and the word timings. Then open <name>/ in Claude Code and say: "make the video" (skill sadat-style-video).
 """
+import json
 import argparse
 import re
 import shutil
@@ -42,6 +43,10 @@ else:
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(voice), '-c:a', 'libmp3lame', '-b:a', '192k', str(narr)], check=True)
 skill = REPO / '.claude/skills/sadat-style-video'
 shutil.copytree(skill, proj / '.claude/skills/sadat-style-video')
+# section editors get a wrap-up nudge after ~80 tool calls (tools/turn_guard.py, 2026-10-17 cost measure)
+(proj / '.claude/settings.json').write_text(json.dumps({'hooks': {'PostToolUse': [{'matcher': '*', 'hooks': [
+    {'type': 'command', 'command': 'python3 "$CLAUDE_PROJECT_DIR/tools/turn_guard.py"', 'timeout': 10}]}]}},
+    indent=1), encoding='utf8')
 (proj / 'CLAUDE.md').write_text(
     f'# {name}\n\nA Sadat-style documentary made from the kit in `{REPO}`.\n'
     'Use the **sadat-style-video** skill for all work here (rules in EDITING_RULES.md).\n'
