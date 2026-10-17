@@ -7,6 +7,8 @@ Each project is a Remotion folder with src/index.ts and public/. Pre-flight: typ
 probe (frames/fps). Then zip src/ + public/ + video.json, release, dispatch, print the run link.
 Nothing is downloaded: the MP4 is the run's "final-<name>" artifact.
 """
+import fcntl
+import hashlib
 import argparse
 import datetime
 import json
@@ -72,7 +74,6 @@ def main():
 
     zips = HERE / 'zips'
     zips.mkdir(exist_ok=True)
-    tag = 'r' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     files = []
     for proj in a.projects:
         project = Path(proj).resolve()
@@ -88,6 +89,12 @@ def main():
         files.append(dest)
 
     workers = max(1, 20 // len(files))
+    # One release + dispatch at a time on this machine (Classic Studio sends several videos at once): the lock keeps
+    # the tag unique and lets the run lookup below find this dispatch, not another video's (2026-10-17 tag clash).
+    lock = open(zips / '.ship.lock', 'w')
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    tag = 'r' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + \
+        hashlib.md5(' '.join(f.stem for f in files).encode()).hexdigest()[:6]
     run([GH, 'release', 'create', tag, *map(str, files), '--repo', a.repo, '--title', tag,
          '--notes', ', '.join(f.stem for f in files)])
     for f in files:
@@ -98,6 +105,8 @@ def main():
     out = run([GH, 'run', 'list', '--repo', a.repo, '--workflow', 'render.yml', '--limit', '1',
                '--json', 'databaseId,url,status'], capture=True)
     r = json.loads(out)[0]
+    time.sleep(2)
+    lock.close()
     print(f'\nrelease {tag} · {workers} chunk jobs per video')
     print(f'run: {r["url"]}  ({r["status"]})')
     print('when it is green, download the MP4 from the run page (artifact final-<name>)')
