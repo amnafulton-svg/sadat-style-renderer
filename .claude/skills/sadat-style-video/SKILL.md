@@ -102,7 +102,11 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   logos, AI art, modern reenactments or wrong era. Web images have unclear rights: list them in `CREDITS.md`.
 - Photos go to `public/photos/`, document scans to `public/docs/` (crop scanner edges and colour bars off).
   Copy from `_cache` with a short descriptive name.
-- For a long script, give each section to a subagent in parallel (general-purpose). Give each one its lines, the
+- For a long script, give each section to a subagent in parallel (general-purpose). Launch all of them in ONE
+  message as foreground Agent calls (`run_in_background: false`): they still run side by side and the turn waits
+  for their results. Never start a second editor for a section while one is running (2026-10-17: a background
+  round looked "not started" 10 s in, a second round doubled every editor). A new editor writes no files for its
+  first minutes; it is alive while `_work/turns/<agent id>` changed in the last 10 min. Give each one its lines, the
   plan rows and these rules, and have it return chosen clip in-points and photo files. Every brief says, word for
   word: "Never Read an image: judge sheets, photos and stills with `python tools/look.py`. Ask long text with
   `python tools/read.py`. Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
