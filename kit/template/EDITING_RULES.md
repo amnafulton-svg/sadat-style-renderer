@@ -78,6 +78,11 @@ map/chart → only then type. Never an AI image.
 - The outro (the closing "subscribe ... see you in the next one" call to action) plays **2 Pexels stock videos**
   without people (calm shots that fit the topic: sky, sea, the place, old buildings), one after the other.
 - Era-matched: no 1950s film under a 1990s line.
+- **HOUSE:** before ~1895 no film exists, so the earliest street film is an accepted stand-in for 19th-century life, but
+  never with automobiles, modern signs or 20th-century machines under a line about an earlier year (pick other seconds
+  or a period print). Later footage is fine where the words are about later times.
+- **HOUSE: every coin, note, stamp, token or seal on screen gets an object tag naming it** ("3¢ STAMP, 1861"); a
+  slogan tape alone is not enough.
 - No staged stock (no Pexels people, actors, reenactments). Stock only for a real named place, without people.
 - Rights: public domain / CC / US government / Prelinger first. Unclear rights are OK; list them in `CREDITS.md`.
   Skip anything marked "all rights reserved".
@@ -113,6 +118,9 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   Special Elite for tape labels. Crimson highlight bars, red marker circles.
 - **Prints:** white border, small tilt (±1–4°), drop shadow, never stretched.
 - **HOUSE:** no subtitles.
+- **HOUSE: text must read against what is under it.** `BigSerif`/`ListWords` default to cream: on `Paper`, light
+  desks, pale sky or white print borders give them dark ink (`color`) or a dark plate. Tags, tapes and bars sit beside
+  prints, not on their edges or captions, and stay inside the frame at the end of every camera move.
 
 ## 7. Sound
 
