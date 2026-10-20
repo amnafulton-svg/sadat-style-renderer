@@ -34,7 +34,7 @@ for f in (script, voice):
 if proj.exists():
     sys.exit(f'{proj} already exists (pick another name or delete it)')
 
-shutil.copytree(KIT / 'template', proj, ignore=shutil.ignore_patterns('node_modules', '_cache', '_stills', '_sheets'))
+shutil.copytree(KIT / 'template', proj, ignore=shutil.ignore_patterns('node_modules', '_cache', '_stills', '_sheets', '_review'))
 shutil.copy2(script, proj / 'script.md')
 narr = proj / 'public/audio/narration.mp3'
 if voice.suffix.lower() == '.mp3':

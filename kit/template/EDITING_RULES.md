@@ -137,4 +137,5 @@ A transition used for decoration means nothing, so most changes are hard cuts.
 3. Add `{id, from, to, enter, why, el}` to `src/timeline/video.tsx`. Write the **why**: the line it covers and why
    this picture.
 4. Cue every print, strip and type at its spoken word.
-5. `python tools/validate.py`, then `node tools/stills.mjs _stills <t1> <t2> …` and look at the frames.
+5. `python tools/validate.py`, then `python tools/board.py --from <t1> --to <t2>` and look at the boards yourself:
+   each picture must show what its words say.
