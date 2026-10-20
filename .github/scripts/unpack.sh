@@ -5,7 +5,13 @@ set -euo pipefail
 tag="$1"; zip="$2"
 rm -rf incoming src public video.json
 mkdir -p incoming
-gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$zip" --dir incoming
+# 20 chunk jobs hit the release in the same second; GitHub now and then answers 500 or "release not found"
+# (run 39473941832, 2026-10-20), so retry with a growing, jittered wait before giving up.
+for try in 1 2 3 4 5 6; do
+  gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$zip" --dir incoming --clobber && break
+  [ "$try" = 6 ] && exit 1
+  sleep $(( try * 10 + RANDOM % 10 ))
+done
 unzip -q -o "incoming/$zip" 'src/*' 'public/*' video.json
 rm -rf incoming
 test -f src/index.ts
