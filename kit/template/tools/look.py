@@ -45,6 +45,26 @@ Answer format, nothing else (no intro, no summary):
   Never guess a pass."""
 
 
+
+def account_env():
+    """The environment for the helper's claude call. On the producer's server it uses the Claude account picked on the
+    Videos page (claude_accounts.py), like the chat itself: the chat's account token does not reach tool shells, so
+    the helpers used the server's own login instead (account 1, weekly-limited 2026-10-19: every look.py call answered
+    UNSURE while the chats ran on account 2). Anywhere else: the environment as it is."""
+    env = dict(os.environ)
+    acc = Path.home() / "yt" / "archive-remotion-factory" / "claude_accounts.py"
+    if acc.exists():
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("claude_accounts", acc)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            env = mod.env(env, mod.active() or mod.accounts()[0])
+        except Exception:  # noqa: BLE001 - a broken switch must never stop the helper
+            pass
+    return env
+
+
 def claude_bin():
     return shutil.which("claude") or str(Path.home() / ".local/bin/claude")
 
@@ -60,7 +80,8 @@ def ask(question, note, imgs, cwd):
         cmd += ["--add-dir", str(d)]
     t0 = time.time()
     for attempt in range(2):
-        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=cwd, timeout=900)
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=cwd, timeout=900,
+                           env=account_env())
         try:
             out = json.loads(r.stdout)
             if not out.get("is_error") and out.get("result", "").strip():
