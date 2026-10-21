@@ -154,7 +154,8 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
 - `why` = the line it covers + why this picture. It keeps the edit honest.
 - Film: `<F src="x.mp4" start={s} grade="bw|sepia|warm|blue" />` (optional `focusY`, `rate`).
 - Boards: `<ConcreteWall>` or `<Paper>` holding `PhotoPrint`s that land on their words (`at`), with `NameStrip`,
-  `RedCircle`, `DateTag`, `BlackTag` inside or beside them, and optionally a `Camera keys=[…]` move.
+  `RedCircle`, `DateTag`, `BlackTag` inside or beside them, and optionally a `Camera keys=[…]` drift (scale 0.95-1.12, at most 3 % per second: never a zoom into a detail;
+  the Great Plains pushes to 1.25-2.1x read as a "weird zoom", producer 2026-10-21).
 - Type: `BigSerif` (numbers), `Highlight` (claim over film), `QuoteText words={q('a b c', [t…])}`,
   `ListWords items={l('a|b|c', [t…])}`, `GhostTitle` behind.
 - `DocMap id={n} spec={{mode, title, year, camera: {fromCenter, fromZoom, center, zoom}, places, routes, territories, regions}}`.

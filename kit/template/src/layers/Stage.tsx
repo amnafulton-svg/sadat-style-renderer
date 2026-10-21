@@ -12,9 +12,28 @@ import {useCue, useScene} from '../lib/scene';
 
 export type Key = {at: number; x: number; y: number; s: number}; // narration s; board-px centre + scale
 /** keys are narration seconds; the camera eases between them (board is 1920x1080 at s=1 centred at 960,540) */
+// HOUSE (producer 2026-10-21, Great Plains "weird zoom"): the camera drifts, it never punches in. Scale stays within
+// 0.95-1.12 and changes at most 3 % per second; the view never leaves the board. Applied here so a bold key never
+// reaches the render; tools/validate.py errors on such keys so the editor sees them.
+const S_MAX = 1.12, S_MIN = 0.95, RATE = 0.03;
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const calm = (keys: Key[]): Key[] => {
+  const out: Key[] = [];
+  keys.forEach((k, i) => {
+    let s = clamp(k.s, S_MIN, S_MAX);
+    if (i > 0) {
+      const lim = RATE * Math.max(k.at - keys[i - 1].at, 0.04);
+      s = clamp(s, out[i - 1].s - lim, out[i - 1].s + lim);
+    }
+    const hx = 960 / s, hy = 540 / s; // half the visible board at this scale
+    out.push({at: k.at, s, x: s > 1 ? clamp(k.x, hx, 1920 - hx) : 960, y: s > 1 ? clamp(k.y, hy, 1080 - hy) : 540});
+  });
+  return out;
+};
 export const Camera: React.FC<{keys: Key[]; children: React.ReactNode}> = ({keys, children}) => {
   const cue = useCue();
   const {frame} = useScene();
+  keys = calm(keys);
   const fr = keys.map((k) => cue(k.at));
   let x = keys[0].x;
   let y = keys[0].y;

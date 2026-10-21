@@ -5,7 +5,8 @@
 ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missing or shorter than its scene,
        a missing photo/doc, banned layers (MapBlinds, TitleCard, Epigraph, Flash, Ribbon), burns on film->film,
        a picture change in the middle of a sentence (outside the hook), the same clip/photo twice after the hook,
-       text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row.
+       text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row,
+       camera keys outside scale 0.95-1.12 or zooming faster than 3 % per second.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, film stills over 9 s with nothing new.
 """
 import argparse
@@ -22,6 +23,9 @@ a = ap.parse_args()
 ROOT = Path(a.root)
 
 s = (ROOT / a.file).read_text(encoding='utf8')
+# sections may live in src/timeline/parts/s*.tsx (imported by video.tsx, in order): check them as one cut
+if a.file == 'src/timeline/video.tsx':
+    s += ''.join(p.read_text(encoding='utf8') for p in sorted((ROOT / 'src/timeline/parts').glob('s*.tsx'), key=lambda p: int(p.stem[1:])))
 M = json.loads((ROOT / 'src/lib/media.json').read_text())
 W = json.loads((ROOT / 'src/lib/words.json').read_text(encoding='utf8'))
 OV = {'cut': 0, 'dissolve': 22, 'whip': 6, 'whipL': 6, 'torn': 12, 'rack': 0}
@@ -114,6 +118,21 @@ elif bare:
        + ', '.join(sid for sid, _, _ in bare))
 if scenes and abs(prev_to - END) > 0.001:
     E(f'last scene ends {prev_to}, END is {END}')
+
+# camera: a slow drift, never a punch-in (producer 2026-10-21): scale 0.95-1.12, at most 3 % per second.
+# Camera clamps bold keys at render time anyway; this tells the editor the move they wrote is not what plays.
+num = lambda e: float(eval(e, {'__builtins__': {}})) if re.fullmatch(r'[\d.+\- ]+', e.strip()) else None
+for sid, fr, to, en, b in scenes:
+    for cm in re.finditer(r'<Camera keys=\{\[(.*?)\]\}', b, re.S):
+        ks = [(num(t), float(z)) for t, z in re.findall(r'at:\s*([^,]+),[^}]*?\bs:\s*([\d.]+)', cm.group(1))]
+        ks = [k for k in ks if k[0] is not None]
+        if any(not 0.95 <= z <= 1.12 for _, z in ks):
+            E(f'{sid}: camera scale {max(z for _, z in ks)} (keep 0.95-1.12: a slow drift, never a zoom into a detail; '
+              f'show the detail as its own print or crop instead)')
+        for (t0, z0), (t1, z1) in zip(ks, ks[1:]):
+            if abs(z1 - z0) > 0.03 * max(t1 - t0, 0.04) + 1e-6:
+                E(f'{sid}: camera {z0}->{z1} in {t1 - t0:.1f} s at {t0:.1f} (max 3 % per second: a drift, not a zoom)')
+                break
 
 # film burns: only where the picture changes layer (film <-> print/graphic), never film -> film
 bm = re.search(r'export const BURNS[^=]*=\s*\[(.*?)\];', s, re.S)

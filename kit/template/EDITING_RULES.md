@@ -42,7 +42,7 @@ Moving between these three planes means something. Film → board says "now look
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 7 | Annotations | `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
 | 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember |
-| 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow move over a board; prints never move on their own once they land |
+| 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow drift over a board (scale 0.95-1.12, at most 3 % per second); prints never move on their own once they land |
 | 10 | Transition | `Enter` kinds + `BURNS` (`Main.tsx`) | Between scenes (sec. 5) |
 | 11 | Skin | `Grain`, `Dust`, `Vignette` (`overlays/`) | Always on, every frame (makes film and paper one printed object) |
 
@@ -96,6 +96,9 @@ map/chart → only then type. Never an AI image.
 - **Everything lands on its word.** Every `at` is a narration second from `transcript.txt`. Prints fly in for 8
   frames and land as the word starts; type pops just before its word.
 - **Prints land, then the camera moves** (`Camera` keys), or the board simply holds while the argument builds.
+- **HOUSE: the camera drifts, it never zooms in (producer, 2026-10-21).** Keys stay within scale 0.95-1.12 and change
+  at most 3 % per second (1.0 -> 1.08 takes 3 s or more). A detail the words name gets its own print or crop, not a
+  push into the board. `Camera` clamps bolder keys and `validate.py` errors on them.
 - **One board per argument.** It leaves when the argument ends, not when a timer runs out.
 
 ## 5. Transitions
