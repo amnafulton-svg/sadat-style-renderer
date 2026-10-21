@@ -153,11 +153,12 @@ export const BlackTag: React.FC<{at: number; x: number; y: number; line1: string
   const cue = useCue();
   const {frame} = useScene();
   const p = prog(frame, cue(at) - 3, 8);
+  const w = Math.max(line1.length * size * 0.7, (line2?.length ?? 0) * size * 0.58 * 0.5) + 44; // a long tag never runs off the frame
   return (
     <div
       style={{
         position: 'absolute',
-        [align]: align === 'left' ? x : 1920 - x,
+        [align]: align === 'left' ? Math.min(x, 1920 - 48 - w) : 1920 - Math.max(x, 48 + w),
         top: y,
         background: C.tag,
         padding: '12px 22px 12px',

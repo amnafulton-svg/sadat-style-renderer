@@ -155,8 +155,13 @@ export const LabelTape: React.FC<Pos & {text: string; at: number; size?: number;
   const {frame} = useScene();
   const s = cue(at) - 3;
   const n = Math.max(0, Math.min(text.length, Math.floor(frame - s)));
+  const w = text.length * (size * 0.6 + 4) + 52; // a long tape never runs off the frame
+  const a = pos.anchor ?? 'center';
+  const lo = 48 + (a === 'center' ? w / 2 : a === 'right' ? w : 0);
+  const hi = 1872 - (a === 'center' ? w / 2 : a === 'left' ? w : 0);
+  const x = Math.max(lo, Math.min(pos.x, hi));
   return (
-    <div style={{...place(pos), opacity: frame >= s ? 1 : 0}}>
+    <div style={{...place({...pos, x}), opacity: frame >= s ? 1 : 0}}>
       <div
         style={{
           transform: `rotate(${rot}deg)`,
