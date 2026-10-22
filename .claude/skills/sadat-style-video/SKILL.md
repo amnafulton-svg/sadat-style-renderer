@@ -122,10 +122,10 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   logos, AI art, modern reenactments or wrong era. Web images have unclear rights: list them in `CREDITS.md`.
 - Photos go to `public/photos/`, document scans to `public/docs/` (crop scanner edges and colour bars off).
   Copy from `_cache` with a short descriptive name.
-- **How many sections (producer 2026-10-21, cost):** one section per ~5 minutes of narration, so a 30-minute
-  script gets 6, and never more than 8, split on story turns. Each extra editor re-reads the same rules and setup
-  from scratch (past 30-min videos ran 10-16 editors). A big section loses nothing: when its editor gets long, the
-  turn guard hands it to a fresh editor that carries on from HANDOFF.md. Never split a section further to go faster.
+- **How many sections (producer 2026-10-22, cost):** one section per ~2.5-3 minutes of narration, so a 30-minute
+  script gets 10-12, never fewer than 3 or more than 14, split on story turns. Measured on Britain (11 sections):
+  most of the cost is each editor re-reading its own growing chat, while its setup is small (~13k tokens), so
+  fewer, bigger sections cost MORE; many tiny ones cost more again in setup, joins and repeat fixes.
 - For a long script, give each section to a subagent in parallel (general-purpose). Launch all of them in ONE
   message as foreground Agent calls (`run_in_background: false`): they still run side by side and the turn waits
   for their results. Never start a second editor for a section while one is running (2026-10-17: a background
