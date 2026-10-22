@@ -17,17 +17,53 @@ import os
 import re
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / '_cache'
-UA = {'User-Agent': 'sadat-style-video-kit/1.0 (documentary research)'}
+UA = {'User-Agent': 'SadatStyleVideoKit/1.1 (https://github.com/amnafulton-svg/sadat-style-renderer; documentary research)'}  # Wikimedia throttles UAs without a contact link
+WIKI_GAP = 1.0       # seconds between Wikimedia requests, machine-wide
+RETRY_BUDGET = 90    # seconds of retrying before a call gives up
+
+
+def polite(url):
+    """Wikimedia blocks bursts (2026-10-22 test: 11 editors at once got 429s and each sat up to 10 min). All
+    processes on this machine take turns: at most one request to *.wikimedia.org per WIKI_GAP seconds."""
+    if 'wikimedia.org' not in url:
+        return
+    import fcntl
+    with open('/tmp/sadat-wikimedia.lock', 'a+') as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        f.seek(0)
+        last = float(f.read() or 0)
+        time.sleep(max(0.0, last + WIKI_GAP - time.time()))
+        f.seek(0); f.truncate(); f.write(str(time.time()))
+
+
+def opened(url, timeout):
+    """urlopen with retries on 429/5xx (Retry-After honoured). Gives up after RETRY_BUDGET seconds with an error
+    that says so, so no call blocks long enough for the editor's prompt cache (5 min) to expire."""
+    t0 = time.time()
+    for n in range(8):
+        polite(url)
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504):
+                raise
+            wait = min(float(e.headers.get('Retry-After') or 0) or 3 * 2 ** n, 30)
+            if time.time() - t0 + wait > RETRY_BUDGET:
+                raise RuntimeError(f'rate-limited ({e.code}): skip it, carry on with other lines, try again later')
+            time.sleep(wait)
+    raise RuntimeError('rate-limited: skip it, carry on with other lines, try again later')
 
 
 def get(url):
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120) as r:
+    with opened(url, 120) as r:
         return json.loads(r.read().decode('utf8'))
 
 
@@ -36,7 +72,7 @@ def download(url, dest):
     if dest.exists() and dest.stat().st_size > 0:
         return dest
     tmp = dest.with_name(dest.name + '.part')
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=600) as r, open(tmp, 'wb') as f:
+    with opened(url, 600) as r, open(tmp, 'wb') as f:
         while True:
             chunk = r.read(1 << 20)
             if not chunk:
@@ -80,7 +116,7 @@ def commons(q, key, rows, video):
     url = 'https://commons.wikimedia.org/w/api.php?' + urllib.parse.urlencode({
         'action': 'query', 'format': 'json', 'generator': 'search', 'gsrnamespace': 6, 'gsrlimit': rows,
         'gsrsearch': q + (' filetype:video' if video else ' filetype:bitmap'),
-        'prop': 'imageinfo', 'iiprop': 'url|size|extmetadata', 'iiurlwidth': 2400})
+        'prop': 'imageinfo', 'iiprop': 'url|size|extmetadata', 'iiurlwidth': 1920})
     pages = sorted(get(url).get('query', {}).get('pages', {}).values(), key=lambda p: p.get('index', 0))
     out, files = [], []
     for i, p in enumerate(pages):

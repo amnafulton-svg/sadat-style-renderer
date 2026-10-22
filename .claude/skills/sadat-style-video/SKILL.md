@@ -110,7 +110,7 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   directly, but only the lines you need (`sed -n`), right before you edit them.
 - **No personal data in any request (privacy rule, 2026-10-18).** Search and download only through
   `tools/source.py` and `tools/cut.py`. If you must make your own HTTP call (curl, requests, urllib), send the kit's
-  fixed header `User-Agent: sadat-style-video-kit/1.0 (documentary research)` and nothing else about anyone: never
+  fixed header `User-Agent: SadatStyleVideoKit/1.1 (https://github.com/amnafulton-svg/sadat-style-renderer; documentary research)` and nothing else about anyone: never
   an email address, name, account id, token or file path in a header, URL, query or upload (a section editor once
   put the producer's email in a Wikimedia User-Agent). The same goes for files the video ships with.
 - Screen film sheets with look.py, then open the sheet of each film you actually cut from and pick the in-point
@@ -140,8 +140,11 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   picture doesn't show what its words say, then re-board the fixed part. Never cat, loop or grep
   whole dumps (search results, JSON, logs, transcripts, latam.tsx): pipe them to `python tools/read.py "<question>"`.
   Read your own section code and plan directly, only the lines you need. Search and download only with
-  tools/source.py; any HTTP call of your own uses `User-Agent: sadat-style-video-kit/1.0 (documentary research)`
-  and never an email, name, account id or token. Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
+  tools/source.py; any HTTP call of your own uses `User-Agent: SadatStyleVideoKit/1.1 (https://github.com/amnafulton-svg/sadat-style-renderer; documentary research)`
+  and never an email, name, account id or token. source.py paces Wikimedia and retries by itself: never write
+  your own fetch, retry or wait-loop scripts; if it prints `rate-limited`, go on with your next line and come back to
+  it later, and never sleep or wait on anything for more than 4 minutes (an idle chat's cache expires after 5 and the
+  whole chat is paid again). Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
   left, problems). After ~80 tool calls a `[turn guard]` message from the producer's project hook tells you to
   wrap up: then finish the step in hand, update HANDOFF.md and end with `HANDOFF: _parts/<section>/HANDOFF.md`."
   When an editor ends with `HANDOFF:`, start a fresh section editor with the same brief plus "read that HANDOFF.md
