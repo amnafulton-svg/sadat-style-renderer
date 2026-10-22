@@ -249,7 +249,9 @@ const BarChart = ({chart, t}: {chart: ArchiveChart; t: number}) => {
   const rows = chart.rows ?? [];
   const max = chart.max ?? Math.max(...rows.flatMap((r) => [r.amount, ...(r.steps ?? []).map((s) => s.amount), r.segments ? r.segments.reduce((s, g) => s + g.amount, 0) : 0])) * 1.04;
   const LABEL = chart.labelWidth ?? 400;
-  const TRACK = Math.min(1000, 1600 - LABEL - 160); // the value number sits after the track; keep it on frame when labels are wide
+  // the value number sits after the track: reserve room for the longest value text (68 px bold renders ~47 px a character) so it ends by x 1810
+  const longest = Math.max(fmt(max, chart.format).length, ...rows.flatMap((r) => [r.text, ...(r.steps ?? []).map((s) => s.text)]).map((s) => (s ?? '').length));
+  const TRACK = Math.max(300, Math.min(1000, 1600 - LABEL - 160, 1614 - LABEL - longest * 48));
   const rowH = Math.min(118, (PLOT.bottom - PLOT.top + 40) / rows.length);
   return (
     <AbsoluteFill>
