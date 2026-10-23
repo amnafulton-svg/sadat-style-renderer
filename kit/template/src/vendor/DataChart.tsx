@@ -248,7 +248,9 @@ const ColumnChart = ({chart, t}: {chart: ArchiveChart; t: number}) => {
 const BarChart = ({chart, t}: {chart: ArchiveChart; t: number}) => {
   const rows = chart.rows ?? [];
   const max = chart.max ?? Math.max(...rows.flatMap((r) => [r.amount, ...(r.steps ?? []).map((s) => s.amount), r.segments ? r.segments.reduce((s, g) => s + g.amount, 0) : 0])) * 1.04;
-  const LABEL = chart.labelWidth ?? 400;
+  // row labels are 34 px caps with 4 px tracking (~27 px a character): widen the label column for long labels instead of
+  // clipping them at 400 px (Zulu 2026-10-23: "BRITISH SOLDIERS" and "AFRICAN AUXILIARIES" were cut off by their bars)
+  const LABEL = chart.labelWidth ?? Math.min(700, Math.max(400, ...rows.map((r) => (r.label ?? '').length * 27 + 30)));
   // the value number sits after the track: reserve room for the longest value text (68 px bold renders ~47 px a character) so it ends by x 1810
   const longest = Math.max(fmt(max, chart.format).length, ...rows.flatMap((r) => [r.text, ...(r.steps ?? []).map((s) => s.text)]).map((s) => (s ?? '').length));
   const TRACK = Math.max(300, Math.min(1000, 1600 - LABEL - 160, 1614 - LABEL - longest * 48));
