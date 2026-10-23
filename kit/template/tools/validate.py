@@ -6,11 +6,15 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a missing photo/doc, banned layers (MapBlinds, TitleCard, Epigraph, Flash, Ribbon), burns on film->film,
        a picture change in the middle of a sentence (outside the hook), the same clip/photo twice after the hook,
        text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row,
-       camera keys outside scale 0.95-1.12 or zooming faster than 3 % per second.
-WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, film stills over 9 s with nothing new,
-       the same film shot or photo under another file name after the hook (tools/repeats.py: frames compared by
-       picture, cached in _cache/repeat_hashes.json), DocMaps zoomed past what world.jpg / their basemaps can show
-       sharply (tools/mapres.py: add a Sentinel-2 basemap or pull the camera back).
+       camera keys outside scale 0.95-1.12 or zooming faster than 3 % per second,
+       one picture held over 3+ sentences (> 8 s, outside the hook), a scene that opens on an empty backdrop
+       (its first print/doc lands > 1 s after the cut),
+       and from tools/repeats.py (frames compared by picture, cached in _cache/repeat_hashes.json): the same film shot
+       or photo under another file name after the hook, the same setting (gate, crowd, room) again from another
+       clip of one source film (_work/clips.tsv, written by cut.py), >= 1 s of blank (black/white/flat) film.
+WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
+       DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
+       basemap or pull the camera back).
 """
 import argparse
 import json
@@ -74,6 +78,7 @@ if not scenes:
     E('no scenes found')
 
 seen = {}
+held = []  # (scene, seconds, line): reported after repeats.py measured the cuts inside film
 prev_to = 0.0
 for sid, fr, to, en, b in scenes:
     if abs(prev_to - fr) > 0.001:
@@ -107,8 +112,17 @@ for sid, fr, to, en, b in scenes:
         if src in seen and seen[src][0] != sid and fr >= a.hook:
             E(f'{sid}: {src} already shown in {seen[src][0]} (no repeats after the hook)')
         seen.setdefault(src, (sid, fr, src))
-    if has_film and to - fr > 9 and b.count('<F ') == 1 and 'PhotoPrint' not in b and fr >= a.hook:
-        Wn(f'{sid}: one film shot for {to - fr:.1f} s; split it on a phrase end if the narration moves on')
+    # one picture under three or more sentences reads as a stuck shot (producer, Britain test 2026-10-23)
+    pics = len(re.findall(r'<(?:F|PhotoPrint|DocCard)\b', b))
+    ends = [w for w in W if fr + 0.3 < w['e'] < to - 0.3 and re.search(r'[.!?]["\')\]]*$', w['w'])]
+    if pics == 1 and to - fr > 8 and len(ends) >= 2 and fr >= a.hook and not re.search(r'<(DocMap|Chart)\b', b):
+        held.append((sid, to - fr, f'{sid}: one picture for {to - fr:.1f} s over {len(ends) + 1} sentences; cut to a new '
+                     f'shot on a sentence end (' + ', '.join(f"{w['e']:.2f}" for w in ends) + ')'))
+    # an empty backdrop at the cut: every print/doc slides in later and nothing else is on screen
+    ats = [float(x) for x in re.findall(r'<(?:PhotoPrint|DocCard)\b[^>]*?\bat=\{([\d.]+)\}', b)]
+    if ats and not re.search(r'<(?:F|Film|DocMap|Chart)\b', b) and min(ats) - fr > 1.0:
+        E(f'{sid}: nothing on screen for {min(ats) - fr:.1f} s after the cut at {fr} (first print at {min(ats)}); '
+          f'start the scene on a picture')
 # no slideshow: type alone on Black/ConcreteWall/Paper (no film, print, document, map or chart under it)
 PIC = re.compile(r'<(F|Film|PhotoPrint|DocCard|DocMap|Chart)\b')
 bare = [(sid, fr, to) for sid, fr, to, en, b in scenes if not PIC.search(b)]
@@ -156,16 +170,23 @@ for at, n in burns:
     if film(scenes[i - 1][4]) and film(scenes[i][4]):
         E(f'burn at {at}: film -> film ({scenes[i - 1][0]} -> {scenes[i][0]}); burns only on a layer change')
 
-# the same shot under two file names (cut twice from one archive film, a photo saved twice) and blocky maps: WARN only
+# the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
+# smeared film and blocky maps: WARN
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mapres  # noqa: E402
 warns += mapres.check(ROOT, scenes, s)
 if not a.no_repeats:
     try:
         import repeats  # noqa: E402
-        warns += repeats.check(ROOT, scenes, a.hook, a.repeat_cache, M)
+        for lv, msg in repeats.check(ROOT, scenes, a.hook, a.repeat_cache, M):
+            (E if lv == 'ERROR' else Wn)(msg)
     except ImportError as ex:
         Wn(f'picture-repeat check skipped ({ex}): run with the python that has PIL and numpy')
+# a held film clip that has its own cuts inside (an edited archive film) is not a stuck shot
+shot_len = sys.modules['repeats'].SHOT_LEN if 'repeats' in sys.modules else {}
+for sid, dur, line in held:
+    if not (sid in shot_len and shot_len[sid] < dur - 1 and shot_len[sid] <= 8):
+        E(line)
 
 for w in warns:
     print('WARN ', w)

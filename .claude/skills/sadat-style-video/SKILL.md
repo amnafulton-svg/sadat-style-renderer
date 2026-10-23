@@ -126,30 +126,63 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
   script gets 10-12, never fewer than 3 or more than 14, split on story turns. Measured on Britain (11 sections):
   most of the cost is each editor re-reading its own growing chat, while its setup is small (~13k tokens), so
   fewer, bigger sections cost MORE; many tiny ones cost more again in setup, joins and repeat fixes.
-- For a long script, give each section to a subagent in parallel (general-purpose). Launch all of them in ONE
-  message as foreground Agent calls (`run_in_background: false`): they still run side by side and the turn waits
-  for their results. Never start a second editor for a section while one is running (2026-10-17: a background
-  round looked "not started" 10 s in, a second round doubled every editor). A new editor writes no files for its
-  first minutes; it is alive while `_work/turns/<agent id>` changed in the last 10 min. Give each one its lines, the
-  plan rows and these rules, and have it return chosen clip in-points and photo files. Every brief says, word for
-  word: "Screen search sheets and whole-film sheets with `python tools/look.py` (defects, which ranges are clean).
-  Then open yourself (Read) the sheet of each film you cut from and each photo you use, and pick the in-point
-  against the exact words spoken over it: what is named must be on screen when it is said. Never open the same
-  image twice; open sheets and boards, not single full-size stills. When your section is built, run
-  `python tools/board.py --from <section start> --to <section end>` and open every board: fix each tile whose
-  picture doesn't show what its words say, then re-board the fixed part. Never cat, loop or grep
-  whole dumps (search results, JSON, logs, transcripts, latam.tsx): pipe them to `python tools/read.py "<question>"`.
-  Read your own section code and plan directly, only the lines you need. Search and download only with
-  tools/source.py; any HTTP call of your own uses `User-Agent: SadatStyleVideoKit/1.1 (https://github.com/amnafulton-svg/sadat-style-renderer; documentary research)`
-  and never an email, name, account id or token. source.py paces Wikimedia and retries by itself: never write
-  your own fetch, retry or wait-loop scripts; if it prints `rate-limited`, go on with your next line and come back to
-  it later, and never sleep or wait on anything for more than 4 minutes (an idle chat's cache expires after 5 and the
-  whole chat is paid again). Keep _parts/<section>/HANDOFF.md up to date as you go (done, picks with in-points,
-  left, problems). After ~80 tool calls a `[turn guard]` message from the producer's project hook tells you to
-  wrap up: then finish the step in hand, update HANDOFF.md and end with `HANDOFF: _parts/<section>/HANDOFF.md`."
-  When an editor ends with `HANDOFF:`, start a fresh section editor with the same brief plus "read that HANDOFF.md
-  first and carry on from it" (a fresh one re-reads far less than one long session). I check what they pick on
-  the review boards (step 6).
+- For a long script, each section is made in **three phases, each a fresh subagent** (general-purpose, `model:
+  "opus"`): **Pick → Build → Check**. Why (2026-10-21 Britain measure): ~54 % of a video's cost was editors re-reading
+  their own growing chat on every step, and a third of that chat was sheets they had already decided on. A phase
+  ends by writing its result to a file, so the next phase starts small and never carries the earlier pictures.
+  Run one phase for all sections at a time: launch every section's Pick in ONE message as foreground Agent calls
+  (`run_in_background: false`; they run side by side), then every Build in one message, then every Check. Never
+  start a second agent for a section while one is running (2026-10-17: a background round looked "not started" 10 s
+  in, a second round doubled every editor). An agent writes no files for its first minutes; it is alive while
+  `_work/turns/<agent id>` changed in the last 10 min. Every phase brief gives the section's time range, its plan
+  rows and the brief file, and says, word for word: "Never cat, loop or grep whole dumps (search results, JSON,
+  logs, transcripts, latam.tsx): pipe them to `python tools/read.py "<question>"`. Search and download only with
+  tools/source.py; any HTTP call of your own uses `User-Agent: SadatStyleVideoKit/1.1 (https://github.com/amnafulton-svg/sadat-style-renderer; documentary research)` and
+  never an email, name, account id or token. source.py paces Wikimedia and retries by itself: never write your own
+  fetch, retry or wait-loop scripts. If it prints `rate-limited`, go on with your next line and come back to it later;
+  never sleep or wait on anything for more than 4 minutes (an idle chat's cache expires after 5 and the whole chat is
+  paid again). Read each file once: never re-read SKILL.md, EDITING_RULES.md, the brief or a sheet you already opened.
+  When your chat passes ~100k tokens (or after ~80 tool calls) a `[turn guard]` message tells you to wrap up:
+  finish the step in hand, write your phase file, and end with `HANDOFF: <that file>`." When a phase agent ends with
+  `HANDOFF:`, start a fresh agent for the SAME phase that reads that file first and carries on.
+  - **Phase 1 · Pick** (all the looking at sources). Brief adds, word for word: "You choose every shot of your
+    section; you do not cut clips or write code. First run `python tools/facts.py <section start> <section end>`
+    once: the spoken sentences with their times and safe cut points (never grep/awk sentences.md or transcript.txt).
+    Do the legwork in batches with `python tools/batch.py "<command>" "<command>" ...` (free, no model): it runs
+    several `python tools/source.py` / `sheets.py` / `facts.py` commands side by side in ONE call (searches, ia-files,
+    downloads, sheets) and prints each one's short result; media another section logged in `_work/used.tsv` are
+    marked [USED sN] and rights-reserved films are dropped. Put a whole chore in one call: all of several lines'
+    searches together, then all the downloads and sheets together. Every step you take yourself re-sends your whole
+    chat, so never run those commands one at a time, and put independent tool calls in ONE message (several Bash
+    calls side by side) instead of one per turn. Screen search sheets and whole-film sheets with
+    `python tools/look.py` (defects, which ranges are clean). Then open yourself (Read) the sheet of each film you
+    cut from and each photo you use, and pick the in-point against the exact words spoken over it: what is named
+    must be on screen when it is said. Never open the same image twice; open sheets, not single full-size stills.
+    Download what you pick (source.py ia-get / commons / serper) and log each pick in `_work/used.tsv` before
+    choosing it (grep it first: no film range or photo another section logged). Write `_parts/<section>/picks.md`:
+    one row per scene in time order: from–to (narration seconds, cuts only on a sentence end, list comma or pause
+    ≥ 0.3 s), the exact words spoken over it, the layer (film / board / DocMap / Chart / DocCard / type over
+    film), the source file path in `_cache` + in-point + duration + any crop (watermark/timecode strip only), or the
+    photo/scan path, what is on screen at the named word (so a builder who never sees it can place it), NameStrip /
+    tag / label texts with their spoken second, map/chart figures with their spoken seconds, and the credit
+    (archive.org id or Commons page, licence, unclear-rights flag). Then end with `PICKS: _parts/<section>/picks.md`."
+  - **Phase 2 · Build** (no pictures). Brief adds, word for word: "Read `_parts/<section>/picks.md` and build exactly
+    it: cut each clip with `tools/cut.py` (name `<section>_<what>`), copy photos to public/photos and scans to
+    public/docs, write the scenes in `src/timeline/parts/<section>.tsx`, and `_parts/<section>/CREDITS.md` from the
+    picks' credits. Don't open images: picks.md is your eyes. If a pick can't be built (file missing, clip too short)
+    take the nearest clean range of the same source that picks.md describes and note it. Change the file with small
+    Edits, not whole rewrites. Run `npx tsc --noEmit` and `python tools/validate.py` and clear every ERROR in your
+    section (validate.py also errors on one picture held over three sentences, nothing on screen after a cut,
+    blank film and two clips showing the same setting of one film: cut.py logs each clip's source in `_work/clips.tsv`). Write `_parts/<section>/build.md` (what was built, any change from picks.md and why, WARNs left) and end
+    with `BUILT: _parts/<section>/build.md`."
+  - **Phase 3 · Check** (the review boards). Brief adds, word for word: "Read `_parts/<section>/picks.md` and
+    `build.md`, then run `python tools/board.py --from <section start> --to <section end>` and open every board: fix
+    each tile whose picture doesn't show what its words say, or is clipped, colliding, unpadded 4:3 or has a strip on
+    the wrong person, with small Edits. When a shot itself is wrong, screen the alternatives with look.py and open
+    only the sheet you take the new in-point from (log it in `_work/used.tsv`). Re-board only the fixed range and
+    look again. Run tsc + validate.py (zero ERRORs in your section). Keep `_parts/<section>/HANDOFF.md`: what the
+    section shows, what you fixed, what is left. End with `HANDOFF: _parts/<section>/HANDOFF.md`."
+  A fresh Final subagent checks the whole cut on the review boards (step 6).
 - Write `CREDITS.md`: every source (archive.org id / Commons page), its licence, and the unclear-rights ones.
 - `python tools/sheets.py _sheets` makes review sheets of everything in public/. Screen all of them with look.py for
   defects.
@@ -176,17 +209,25 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
 
 ## 6. Check (before telling the producer it's ready)
 
+My own chat is long by now and every step I take re-sends it, so the whole-cut check runs in ONE fresh subagent
+(`model: "opus"`, foreground), never in my chat. Its brief, word for word: "You are the Final check of this
+Sadat-style video. Read `CLAUDE.md`, this skill's house rules and every `_parts/*/HANDOFF.md`.
 1. `npx tsc --noEmit` passes.
 2. `python tools/validate.py`: zero ERRORs. Clear the WARNs or note why one stays.
-3. **Whole-cut review boards, with my own eyes:** `python tools/board.py` (or `--from S --to S` per section) stills
-   every scene mid-scene plus the end frame of every DocMap, Chart and DocCard, 12 per board with the words spoken
-   over each tile, in `_review/`. For a long cut, give each section's boards to a fresh subagent (`model: "opus"`,
-   foreground, all in one message) that opens every board and returns one line per tile that is wrong; a short
-   cut I open myself. Per tile: does the picture show what its words say at that moment (the thing named, the
-   right era/place/person), nothing clipped, labels readable and not colliding, 4:3 film padded, strips on the
-   right person. Fix every flagged tile, then re-board only the fixed time range. A NameStrip or label I'm unsure
-   of gets its own still (`node tools/stills.mjs _stills <t>`).
-4. Then offer the Studio preview (`npm run studio`, opens localhost:3000) and the render.
+3. **Whole-cut review boards:** `python tools/board.py` (or `--from S --to S` per section) stills every scene
+   mid-scene plus the end frame of every DocMap, Chart and DocCard, 12 per board with the words spoken over each
+   tile, in `_review/`. Open every board. Per tile: does the picture show what its words say at that moment (the
+   thing named, the right era/place/person), nothing clipped, labels readable and not colliding, 4:3 film padded,
+   strips on the right person. Also across tiles: the same shot held over several sentences, the same crowd or room
+   shown twice. Fix every flagged tile with small Edits (when a shot itself is wrong, screen alternatives with
+   look.py, open only the sheet you take the new in-point from, log it in `_work/used.tsv`), then re-board only the
+   fixed range and look again. A NameStrip or label you're unsure of gets its own still
+   (`node tools/stills.mjs _stills <t>`).
+4. Run tsc + validate.py once more (zero ERRORs). Write `_parts/FINAL.md`: what you fixed (scene, why), WARNs left
+   and why, and a last line `STATUS: READY` or `STATUS: NOT READY: <what is left>`. End with `FINAL: _parts/FINAL.md`."
+I read only `_parts/FINAL.md` (not the boards). NOT READY: fix what it lists (or brief a fresh Final again) before
+going on.
+STATUS: READY: then I offer the Studio preview (`npm run studio`, opens localhost:3000) and the render.
 
 ## 7. Render (only when asked)
 

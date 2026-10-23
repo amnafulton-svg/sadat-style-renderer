@@ -8,6 +8,10 @@ file), each photo once.
 Frame -> grey, black borders trimmed, centre 80 %, 64-bit DCT hash (pHash). Two scenes repeat when a frame of one is
 within MAX_D bits of a frame of the other on at least MIN_HITS frame pairs, or one pair within SURE_D (one hit for
 two photos). Tuned on three projects: repeats measured 0-10 bits, the closest unrelated shots 12+.
+Two clips cut from the same archive film (_work/clips.tsv, written by cut.py) repeat at a looser SAME_SET_D: the same
+gate, crowd or mill room seen again from another second (Lumb 1900 crowd clips 12-16 bits, other shots of one
+film 20+). Film frames also give: blank stretches (>= 1 s of flat frames: black, white, fog) and smeared sources
+(edge sharpness under SOFT; clean archive film measures 7-30).
 Hashes are cached in _cache/repeat_hashes.json (file size + mtime keyed), so a re-run takes seconds.
 
     python tools/repeats.py [--root DIR] [--hook 35] [--debug] [--sheet repeats.jpg]   # validate.py calls check()
@@ -29,6 +33,11 @@ SURE_D = 6        # ... unless that one pair is this close (a fast pan sampled o
 STEP = 0.5        # seconds between sampled frames of a film (pans and walking crowds need it this dense)
 W, H = 192, 108   # frames are hashed from this size
 MIN_STD = 10      # frames flatter than this (black, white flash, fog) say nothing about the shot
+SAME_SET_D = 18   # clips of one source film: this close on SAME_SET_HITS frame pairs = the same setting again
+SAME_SET_HITS = 3
+SOFT = 4.0        # mean edge sharpness of a shown film under this = smeared (s3_river 2.6)
+CUT_D = 22        # next sampled frame this far apart = a cut inside the clip (one held shot moves 2-14)
+SHOT_LEN = {}     # scene id -> longest uncut film stretch on screen (s), filled by check() for validate.py
 _N = 32
 _C = np.cos(np.pi * (2 * np.arange(_N)[None, :] + 1) * np.arange(_N)[:, None] / (2 * _N))  # DCT-II basis
 
@@ -53,12 +62,22 @@ def phash(im):
     return int(''.join('1' if b else '0' for b in bits), 2)
 
 
+def sharpness(g):
+    """mean edge strength of a grey frame inside its black borders (smeared / out-of-focus film is low)"""
+    g = np.asarray(g, dtype=np.float32)
+    rows, cols = np.where(g.mean(1) > 18)[0], np.where(g.mean(0) > 18)[0]
+    if len(rows) > 12 and len(cols) > 12:
+        g = g[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
+    return float(np.abs(np.diff(g, axis=1)).mean() + np.abs(np.diff(g, axis=0)).mean())
+
+
 def film_hashes(path, t0, n):
-    """hashes of n frames from t0, STEP apart, in one decode (one seek per film, not per frame)"""
+    """(hash, sharpness) of n frames from t0, STEP apart, in one decode (one seek per film, not per frame)"""
     r = subprocess.run(['ffmpeg', '-v', 'error', '-ss', f'{t0:.2f}', '-i', str(path), '-t', f'{n * STEP:.2f}', '-an',
                         '-vf', f'fps={1 / STEP:g},scale={W}:{H},format=gray', '-f', 'rawvideo', '-'], capture_output=True)
     fr = np.frombuffer(r.stdout, np.uint8)
-    return [phash(f.reshape(H, W)) for f in fr[:len(fr) // (W * H) * W * H].reshape(-1, W * H)][:n]
+    fr = fr[:len(fr) // (W * H) * W * H].reshape(-1, H, W)
+    return [(phash(f), round(sharpness(f), 2)) for f in fr][:n]
 
 
 def film_frame(path, t):
@@ -125,7 +144,9 @@ def save_sheet(root, found, path):
 
 
 def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None):
-    """WARN lines for scenes that show the same picture under another file name; sheet=path saves the pairs side by side"""
+    """(level, line) for scenes that show the same picture under another file name or the same setting of one film
+    (ERROR), blank film stretches (ERROR) and smeared film (WARN); sheet=path saves the pairs side by side"""
+    SHOT_LEN.clear()
     root = Path(root)
     cache = Path(cache) if cache else root / '_cache/repeat_hashes.json'
     try:
@@ -148,7 +169,7 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
     key = lambda k: f'{k[0]}|{k[1]}'
     todo = {}
     for k in jobs:
-        if key(k) not in C:
+        if key(k) not in C or (k[1] is not None and key(k) + '|s' not in C):
             todo.setdefault(k[0], []).append(k[1])
 
     def run(tag):
@@ -157,17 +178,19 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
         path = jobs[(tag, ts[0])][0]
         try:
             if ts == [None]:
-                return [((tag, None), phash(Image.open(path)))]
+                return [((tag, None), phash(Image.open(path)), None)]
             ts = sorted(ts)
             hs = film_hashes(path, ts[0], round((ts[-1] - ts[0]) / STEP) + 1)
             grid = {round(ts[0] + i * STEP, 2): h for i, h in enumerate(hs)}
-            return [((tag, t), grid.get(t)) for t in ts]
+            return [((tag, t), *grid.get(t, (None, None))) for t in ts]
         except Exception:  # unreadable file: other checks report missing media
-            return [((tag, t), None) for t in ts]
+            return [((tag, t), None, None) for t in ts]
     with ThreadPoolExecutor(os.cpu_count() or 4) as ex:
         for res in ex.map(run, list(todo)):
-            for k, h in res:
+            for k, h, sh in res:
                 C[key(k)] = h
+                if k[1] is not None:
+                    C[key(k) + '|s'] = sh
     if todo:
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
@@ -176,16 +199,46 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
             pass
 
     # one entry per (scene, file): its hashes with the second each comes from
-    shots = []
+    shots, out = [], []
     for sid, fr, to, kind, path, st, en in items:
         stt = path.stat()
         tag = f'{path.name}|{stt.st_size}|{int(stt.st_mtime)}'
-        hs = [(t, C[key((tag, t))]) for (tg, t) in jobs if tg == tag and C.get(key((tg, t))) is not None
-              and (t is None or st - 0.01 <= t <= en + 0.2)]
+        ts = sorted(t for (tg, t) in jobs if tg == tag and (t is None or st - 0.01 <= t <= en + 0.2))
+        hs = [(t, C[key((tag, t))]) for t in ts if C.get(key((tag, t))) is not None]
         if hs:
             shots.append((sid, fr, to, kind, path.name, hs))
+        if kind != 'film' or not ts:
+            continue
+        # longest stretch without a cut inside the clip (archive films are often already edited)
+        seg, longest, prev = ts[0], 0.0, None
+        for t in ts:
+            h = C.get(key((tag, t)))
+            if prev is not None and h is not None and bin(prev ^ h).count('1') >= CUT_D:
+                longest, seg = max(longest, t - seg), t
+            prev = h if h is not None else prev
+        SHOT_LEN[sid] = max(SHOT_LEN.get(sid, 0.0), longest, ts[-1] - seg + STEP)
+        # blank: >= 1 s of flat frames (black, white, fog) inside what the scene shows
+        run_, worst = 0, (0, 0.0)
+        for t in ts:
+            run_ = run_ + 1 if C.get(key((tag, t))) is None else 0
+            worst = max(worst, (run_, t))
+        if worst[0] >= 2:
+            out.append(('ERROR', f'{sid} at {fr:.1f} s: {path.name} is blank (black/white/flat) for {worst[0] * STEP:.1f} s '
+                                 f'around {worst[1]:.1f} s of the clip; take another in-point or another shot'))
+        sh = [C[key((tag, t)) + '|s'] for t in ts if C.get(key((tag, t)) + '|s') is not None and C.get(key((tag, t)))]
+        if sh and sum(sh) / len(sh) < SOFT:
+            out.append(('WARN', f'{sid} at {fr:.1f} s: {path.name} looks smeared/out of focus (sharpness '
+                                f'{sum(sh) / len(sh):.1f}, clean film 7-30); use a sharper shot if there is one'))
 
-    out, pairs, found = [], [], []
+    src = {}  # clip file -> the film it was cut from (cut.py)
+    try:
+        for row in (root / '_work/clips.tsv').read_text(encoding='utf8').splitlines():
+            c = row.split('\t')
+            if len(c) >= 2:
+                src[c[0]] = c[1]
+    except OSError:
+        pass
+    pairs, found = [], []
     for i, (s1, f1, t1, k1, n1, h1) in enumerate(shots):
         for s2, f2, t2, k2, n2, h2 in shots[i + 1:]:
             if n1 == n2 or (f1 < hook and f2 < hook) or k1 != k2:
@@ -199,8 +252,15 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
                 d, ta, tb = min(hits)
                 found.append((n1, ta, n2, tb, f'{s1} ~ {s2}  d={d}'))
                 where = '' if k1 == 'photo' else f' ({n1} {ta:.1f} s ~ {n2} {tb:.1f} s, {len(hits)} matching frames)'
-                out.append(f'{s2} at {f2:.1f} s shows the same {"photo" if k1 == "photo" else "film shot"} as {s1} at '
-                           f'{f1:.1f} s: {n2} looks like {n1}{where}; cut to a different shot')
+                out.append(('ERROR', f'{s2} at {f2:.1f} s shows the same {"photo" if k1 == "photo" else "film shot"} as '
+                                     f'{s1} at {f1:.1f} s: {n2} looks like {n1}{where}; cut to a different shot'))
+            elif k1 == 'film' and src.get(n1) and src.get(n1) == src.get(n2):
+                near = [d for d in ds if d[0] <= SAME_SET_D]
+                if len(near) >= SAME_SET_HITS:
+                    d, ta, tb = min(near)
+                    found.append((n1, ta, n2, tb, f'{s1} ~ {s2}  same film, d={d}'))
+                    out.append(('ERROR', f'{s2} at {f2:.1f} s shows the same setting as {s1} at {f1:.1f} s: {n2} and {n1} '
+                                         f'are both from {src[n1]} and look alike ({len(near)} close frames); use other film'))
     if sheet and found:
         save_sheet(root, found, sheet)
     if debug:
@@ -233,6 +293,6 @@ if __name__ == '__main__':
     except (OSError, ValueError):
         M = {}
     t0 = time.time()
-    for w in check(R, sc, a.hook, a.cache, M, a.debug, a.sheet):
-        print('WARN ', w)
+    for lv, w in check(R, sc, a.hook, a.cache, M, a.debug, a.sheet):
+        print(lv.ljust(5), w)
     print(f'{time.time() - t0:.1f} s')

@@ -24,4 +24,9 @@ r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(a.start), '-i', a.
 if r.returncode:
     sys.exit('ffmpeg failed')
 print(out)
+# which film each clip came from: validate.py compares clips of one film more strictly (the same gate, crowd, room)
+log = ROOT / '_work/clips.tsv'
+rows = [r for r in (log.read_text(encoding='utf8').splitlines() if log.exists() else []) if r.split('\t')[0] != out.name]
+log.parent.mkdir(exist_ok=True)
+log.write_text('\n'.join(rows + [f'{out.name}\t{Path(a.src).name}\t{a.start}\t{a.dur}']) + '\n', encoding='utf8')
 subprocess.run([sys.executable, str(ROOT / 'tools/media.py')], cwd=ROOT)
