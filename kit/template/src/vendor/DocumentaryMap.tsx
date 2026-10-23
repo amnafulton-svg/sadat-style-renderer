@@ -211,7 +211,11 @@ export const DocumentaryMap = ({
     return {route, index, progress, line, color, head, behind};
   });
 
-  const basemaps = [{src: 'maps/doc/world.jpg', bbox: [-180, -90, 180, 90] as [number, number, number, number]}, ...(spec.basemaps ?? [])];
+  // the world image repeats past ±180°: Alaska/Pacific views showed a dark wedge at the date line (Alaska s04/s05, 2026-10-23)
+  const basemaps = [
+    ...[-360, 0, 360].map((dx) => ({src: 'maps/doc/world.jpg', bbox: [-180 + dx, -90, 180 + dx, 90] as [number, number, number, number]})),
+    ...(spec.basemaps ?? []),
+  ];
   const stateOpacity = interpolate(zoom, [4, 7], [0, 1], clamp01);
   const ripple = (((frame % 45) + 45) % 45) / 45;
   const campaign = spec.mode === 'campaign';
@@ -228,10 +232,13 @@ export const DocumentaryMap = ({
         >
           {basemaps.map((map) => {
             const [w, s, e, n] = map.bbox;
-            const [x, y] = project([w, n]);
+            // the projection folds longitudes into ±180, so a repeat past the date line is placed by its offset
+            const shift = w < -180 ? -360 : w >= 180 ? 360 : 0;
+            const [x0, y] = project([w - shift, n]);
+            const x = x0 + shift * UNITS_PER_DEGREE;
             return (
               <Img
-                key={map.src}
+                key={`${map.src}${map.bbox[0]}`}
                 src={staticFile(map.src)}
                 style={{
                   position: 'absolute',
