@@ -11,6 +11,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
+if len(sys.argv) > 1 and sys.argv[1].startswith('-'):  # "-h" / "--help" made folders named -h/fr and --help/fr
+    sys.exit(__doc__)
 out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / '_sheets'
 fr = out / 'fr'
 fr.mkdir(parents=True, exist_ok=True)
