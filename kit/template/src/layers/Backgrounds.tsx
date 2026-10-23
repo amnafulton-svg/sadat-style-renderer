@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, interpolate, staticFile} from 'remotion';
 import {useScene} from '../lib/scene';
+import {OnPaper} from '../lib/core';
 
 const Textured: React.FC<{tex: string; dim?: number; spot?: boolean; edge?: number; children?: React.ReactNode}> = ({tex, dim = 0, spot = true, edge = 0.7, children}) => {
   const {frame, durFrames} = useScene();
@@ -39,7 +40,7 @@ export const Desk: React.FC<{children?: React.ReactNode}> = ({children}) => (
 );
 export const Paper: React.FC<{children?: React.ReactNode}> = ({children}) => (
   <Textured tex="paper.jpg" dim={-0.08} edge={0.32}>
-    {children}
+    <OnPaper.Provider value={true}>{children}</OnPaper.Provider>
   </Textured>
 );
 export const Black: React.FC<{children?: React.ReactNode}> = ({children}) => <AbsoluteFill style={{background: '#050505'}}>{children}</AbsoluteFill>;

@@ -1,3 +1,4 @@
+import React from 'react';
 // Shared timing, fonts, palette and easing for every layer.
 import {Easing, interpolate} from 'remotion';
 import {loadFont as loadBebas} from '@remotion/google-fonts/BebasNeue';
@@ -21,6 +22,10 @@ export const FONT = {
   type: loadElite('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // typewriter label tape, date stamps
   cond: loadOswald('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // red caps on kraft notes
 };
+
+/** true inside a light background (Paper): text layers then default to ink, not cream. Cream quote text on Paper
+ *  was all but invisible (Alaska s03 "This idea is worth considering", 2026-10-23). */
+export const OnPaper = React.createContext(false);
 
 export const C = {
   crimson: '#9e1b1b', // highlight bars behind keywords

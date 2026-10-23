@@ -9,7 +9,7 @@
 // KraftNote  — kraft-paper note with red condensed caps: the investigator's scribbled conclusion.
 import React from 'react';
 import {interpolate, staticFile} from 'remotion';
-import {C, FONT, easeOut, prog, rand} from '../lib/core';
+import {C, FONT, OnPaper, easeOut, prog, rand} from '../lib/core';
 import {useCue, useScene} from '../lib/scene';
 
 type Pos = {x: number; y: number; anchor?: 'center' | 'left' | 'right'};
@@ -24,12 +24,13 @@ export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; 
   text,
   at,
   size = 260,
-  color = C.cream,
+  color: colorIn,
   sub,
   bar = false,
   out,
   ...pos
 }) => {
+  const color = colorIn ?? (React.useContext(OnPaper) && !bar ? C.ink : C.cream);
   const cue = useCue();
   const {frame} = useScene();
   const s = cue(at) - 2;
@@ -105,10 +106,12 @@ export const QuoteText: React.FC<Pos & {words: {w: string; at: number}[]; size?:
   words,
   size = 62,
   width = 900,
-  color = C.cream,
+  color: colorIn,
   mark = [],
   ...pos
 }) => {
+  const paper = React.useContext(OnPaper);
+  const color = colorIn ?? (paper ? C.ink : C.cream);
   const cue = useCue();
   const {frame} = useScene();
   return (
@@ -119,7 +122,7 @@ export const QuoteText: React.FC<Pos & {words: {w: string; at: number}[]; size?:
         return (
           <span key={i} style={{display: 'inline-block', marginRight: size * 0.26, opacity: p, filter: `blur(${(1 - p) * 10}px)`, position: 'relative'}}>
             {m && <span style={{position: 'absolute', inset: '4px -8px 0', background: C.crimson, transform: `scaleX(${p})`, transformOrigin: 'left', zIndex: -1}} />}
-            <span style={{position: 'relative'}}>{x.w}</span>
+            <span style={{position: 'relative', color: m && paper && !colorIn ? C.cream : undefined}}>{x.w}</span>
           </span>
         );
       })}
