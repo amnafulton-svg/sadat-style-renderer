@@ -11,7 +11,8 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        (its first print/doc lands > 1 s after the cut),
        and from tools/repeats.py (frames compared by picture, cached in _cache/repeat_hashes.json): the same film shot
        or photo under another file name after the hook, the same setting (gate, crowd, room) again from another
-       clip of one source film (_work/clips.tsv, written by cut.py), >= 1 s of blank (black/white/flat) film.
+       clip of one source film (_work/clips.tsv, written by cut.py), >= 1 s of blank (black/white/flat) film,
+       a silent-film title card (intertitle) inside what a scene shows.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).

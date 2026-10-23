@@ -71,13 +71,39 @@ def sharpness(g):
     return float(np.abs(np.diff(g, axis=1)).mean() + np.abs(np.diff(g, axis=0)).mean())
 
 
+def is_card(a, b):
+    """a silent-film title card (intertitle): still, dark, grey, light strokes in wide rows (lines of text). The
+    Alaska penguin clip ran into "But in this case the lady does not seem to regard the proposal favourably."
+    (2026-10-23); dark night scenes, a lone speaker and city lights do not count (no hit in 1636 clips)"""
+    h, w = b.shape[:2]
+    a, b = a[int(h * .1):int(h * .9), int(w * .15):int(w * .85)], b[int(h * .1):int(h * .9), int(w * .15):int(w * .85)]
+    g = b.mean(2)
+    if (g < 60).mean() < .8 or np.abs(a - b).mean() > 1.5:
+        return False
+    if np.abs(b[..., 0] - b[..., 1]).mean() + np.abs(b[..., 1] - b[..., 2]).mean() > 8:
+        return False
+    m = g > max(90, np.percentile(g, 50) + 50)
+    wide = sum(1 for row in m if len(x := np.where(row)[0]) >= 3 and x[-1] - x[0] > .35 * len(row))
+    return wide >= .12 * len(m)
+
+
+def film_cards(path, t0, n):
+    """title card or not, for n frames from t0, STEP apart (one colour decode)"""
+    r = subprocess.run(['ffmpeg', '-v', 'error', '-ss', f'{t0:.2f}', '-i', str(path), '-t', f'{n * STEP:.2f}', '-an',
+                        '-vf', f'fps={1 / STEP:g},scale={W}:{H},format=rgb24', '-f', 'rawvideo', '-'], capture_output=True)
+    fr = np.frombuffer(r.stdout, np.uint8)
+    fr = fr[:len(fr) // (W * H * 3) * W * H * 3].reshape(-1, H, W, 3).astype(np.float32)
+    return [is_card(fr[i - 1] if i else fr[min(1, len(fr) - 1)], fr[i]) for i in range(len(fr))][:n]
+
+
 def film_hashes(path, t0, n):
-    """(hash, sharpness) of n frames from t0, STEP apart, in one decode (one seek per film, not per frame)"""
+    """(hash, sharpness, title card) of n frames from t0, STEP apart, in one decode (one seek per film, not per frame)"""
     r = subprocess.run(['ffmpeg', '-v', 'error', '-ss', f'{t0:.2f}', '-i', str(path), '-t', f'{n * STEP:.2f}', '-an',
                         '-vf', f'fps={1 / STEP:g},scale={W}:{H},format=gray', '-f', 'rawvideo', '-'], capture_output=True)
     fr = np.frombuffer(r.stdout, np.uint8)
     fr = fr[:len(fr) // (W * H) * W * H].reshape(-1, H, W)
-    return [(phash(f), round(sharpness(f), 2)) for f in fr][:n]
+    cards = film_cards(path, t0, n)
+    return [(phash(f), round(sharpness(f), 2), bool(cards[i]) if i < len(cards) else False) for i, f in enumerate(fr)][:n]
 
 
 def film_frame(path, t):
@@ -169,7 +195,7 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
     key = lambda k: f'{k[0]}|{k[1]}'
     todo = {}
     for k in jobs:
-        if key(k) not in C or (k[1] is not None and key(k) + '|s' not in C):
+        if key(k) not in C or (k[1] is not None and (key(k) + '|s' not in C or key(k) + '|t' not in C)):
             todo.setdefault(k[0], []).append(k[1])
 
     def run(tag):
@@ -178,19 +204,20 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
         path = jobs[(tag, ts[0])][0]
         try:
             if ts == [None]:
-                return [((tag, None), phash(Image.open(path)), None)]
+                return [((tag, None), phash(Image.open(path)), None, None)]
             ts = sorted(ts)
             hs = film_hashes(path, ts[0], round((ts[-1] - ts[0]) / STEP) + 1)
             grid = {round(ts[0] + i * STEP, 2): h for i, h in enumerate(hs)}
-            return [((tag, t), *grid.get(t, (None, None))) for t in ts]
+            return [((tag, t), *grid.get(t, (None, None, None))) for t in ts]
         except Exception:  # unreadable file: other checks report missing media
-            return [((tag, t), None, None) for t in ts]
+            return [((tag, t), None, None, None) for t in ts]
     with ThreadPoolExecutor(os.cpu_count() or 4) as ex:
         for res in ex.map(run, list(todo)):
-            for k, h, sh in res:
+            for k, h, sh, cd in res:
                 C[key(k)] = h
                 if k[1] is not None:
                     C[key(k) + '|s'] = sh
+                    C[key(k) + '|t'] = cd
     if todo:
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
@@ -225,6 +252,10 @@ def check(root, scenes, hook=35, cache=None, media=None, debug=False, sheet=None
         if worst[0] >= 2:
             out.append(('ERROR', f'{sid} at {fr:.1f} s: {path.name} is blank (black/white/flat) for {worst[0] * STEP:.1f} s '
                                  f'around {worst[1]:.1f} s of the clip; take another in-point or another shot'))
+        cards = [t for t in ts if C.get(key((tag, t)) + '|t')]
+        if cards:
+            out.append(('ERROR', f'{sid} at {fr:.1f} s: {path.name} shows a silent-film title card (text on black) around '
+                                 f'{cards[0]:.1f} s of the clip; take another in-point or trim the clip before it'))
         sh = [C[key((tag, t)) + '|s'] for t in ts if C.get(key((tag, t)) + '|s') is not None and C.get(key((tag, t)))]
         if sh and sum(sh) / len(sh) < SOFT:
             out.append(('WARN', f'{sid} at {fr:.1f} s: {path.name} looks smeared/out of focus (sharpness '
