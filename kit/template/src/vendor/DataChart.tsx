@@ -28,6 +28,9 @@ export const fmt = (n: number, f: ChartFormat = {}, decimals = f.decimals ?? 0) 
 
 // 0 → 1 as an element arrives so that it lands at `at`
 const arrive = (t: number, at: number, dur = GROW) => interpolate(t, [at - dur, at], [0, 1], easeOut);
+// a bar label never clips: caps at 34 px with 4 px tracking take about 27 px a letter (0.676 * size + 4); a longer
+// label than its column shrinks to fit ("SENT TO THE RUSSIAN GOVER" in a hand-set 680 px column, Alaska 2026-10-23)
+const fitLabel = (label: string, width: number) => Math.max(20, Math.min(34, ((width - 36) / Math.max(1, label.length) - 4) / 0.7));
 
 // the house data backdrop: a slowly waving grid (public/backdrops/grid.mp4, 59 s, looped) on the warm dark field
 export const GRID_VIDEO = 'backdrops/grid.mp4';
@@ -265,7 +268,7 @@ const BarChart = ({chart, t}: {chart: ArchiveChart; t: number}) => {
           return (
             <div key={i} style={{display: 'flex', alignItems: 'center', height: rowH}}>
               <div style={{width: LABEL, flexShrink: 0, overflow: 'hidden'}}>
-                <div style={{...styles.rowLabel, color: hl ? CREAM : 'rgba(244,239,228,0.7)', transform: `translateY(${(1 - labelIn) * 105}%)`}}>{r.label}</div>
+                <div style={{...styles.rowLabel, fontSize: fitLabel(r.label ?? '', LABEL), color: hl ? CREAM : 'rgba(244,239,228,0.7)', transform: `translateY(${(1 - labelIn) * 105}%)`}}>{r.label}</div>
               </div>
               <div style={{position: 'relative', width: TRACK, height: hl ? 34 : 26, flexShrink: 0}}>
                 {chart.track ? <div style={{position: 'absolute', inset: 0, backgroundColor: 'rgba(244,239,228,0.08)', opacity: labelIn}} /> : null}
