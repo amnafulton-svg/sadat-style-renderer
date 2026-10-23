@@ -16,7 +16,7 @@ const Textured: React.FC<{tex: string; dim?: number; spot?: boolean; edge?: numb
     <AbsoluteFill style={{background: '#000', overflow: 'hidden'}}>
       <Img
         src={staticFile(`textures/${tex}`)}
-        style={{position: 'absolute', width: 2400, height: 1350, left: -240 + drift, top: -135, filter: `brightness(${1 - dim})`}}
+        style={{position: 'absolute', width: 2400, height: 1350, left: -240, top: -135, transform: `translateX(${drift}px)`, filter: `brightness(${1 - dim})`}}
       />
       {spot && (
         <AbsoluteFill

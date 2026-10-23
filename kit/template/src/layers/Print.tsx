@@ -43,10 +43,12 @@ export const PhotoPrint: React.FC<{
     <div
       style={{
         position: 'absolute',
-        left: x - w / 2 + dx + d * 0.6,
-        top: y + dy - d * 0.3,
+        // whole-px left/top + the moving part in transform: Chrome snaps left/top to whole pixels, so a slow
+        // drift there stepped 1 px every ~0.7 s and the prints shook (Alaska 2026-10-23); transforms move sub-pixel
+        left: x - w / 2,
+        top: y,
         width: w,
-        transform: `translateY(-50%) rotate(${r}deg) scale(${1 + (1 - p) * 0.06})`,
+        transform: `translate(${dx + d * 0.6}px, ${dy - d * 0.3}px) translateY(-50%) rotate(${r}deg) scale(${1 + (1 - p) * 0.06})`,
         opacity,
         background: '#f1ece0',
         padding: border,

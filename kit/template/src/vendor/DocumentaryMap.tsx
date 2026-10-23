@@ -403,11 +403,11 @@ export const DocumentaryMap = ({
           </svg>
           <Img
             src={staticFile('maps/doc/clouds.png')}
-            style={{...styles.clouds, left: -500 + frame * 0.9, top: -260 + frame * 0.25, filter: 'brightness(0) blur(10px)', opacity: 0.3}}
+            style={{...styles.clouds, left: -500, top: -260, transform: `translate(${frame * 0.9}px, ${frame * 0.25}px)`, filter: 'brightness(0) blur(10px)', opacity: 0.3}}
           />
           <Img
             src={staticFile('maps/doc/clouds.png')}
-            style={{...styles.clouds, left: -540 + frame * 0.9, top: -300 + frame * 0.25, opacity: 0.2}}
+            style={{...styles.clouds, left: -540, top: -300, transform: `translate(${frame * 0.9}px, ${frame * 0.25}px)`, opacity: 0.2}}
           />
         </div>
       </div>
