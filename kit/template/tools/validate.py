@@ -7,11 +7,15 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a picture change in the middle of a sentence (outside the hook), the same clip/photo twice after the hook,
        text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row,
        camera keys outside scale 0.95-1.12 or zooming faster than 3 % per second.
-WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, film stills over 9 s with nothing new.
+WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, film stills over 9 s with nothing new,
+       the same film shot or photo under another file name after the hook (tools/repeats.py: frames compared by
+       picture, cached in _cache/repeat_hashes.json), DocMaps zoomed past what world.jpg / their basemaps can show
+       sharply (tools/mapres.py: add a Sentinel-2 basemap or pull the camera back).
 """
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +23,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--hook', type=float, default=35, help='seconds of fast hook montage at the start (relaxed rules)')
 ap.add_argument('--file', default='src/timeline/video.tsx')
 ap.add_argument('--root', default=str(ROOT), help='project folder (default: this one)')
+ap.add_argument('--no-repeats', action='store_true', help='skip the picture-repeat check (needs ffmpeg, PIL, numpy)')
+ap.add_argument('--repeat-cache', help='hash cache file (default _cache/repeat_hashes.json)')
 a = ap.parse_args()
 ROOT = Path(a.root)
 
@@ -149,6 +155,17 @@ for at, n in burns:
     film = lambda b: b.lstrip().find('<F ') != -1 and '<Desk' not in b and '<Paper' not in b and '<DocMap' not in b and '<Chart' not in b and '<DocCard' not in b
     if film(scenes[i - 1][4]) and film(scenes[i][4]):
         E(f'burn at {at}: film -> film ({scenes[i - 1][0]} -> {scenes[i][0]}); burns only on a layer change')
+
+# the same shot under two file names (cut twice from one archive film, a photo saved twice) and blocky maps: WARN only
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mapres  # noqa: E402
+warns += mapres.check(ROOT, scenes, s)
+if not a.no_repeats:
+    try:
+        import repeats  # noqa: E402
+        warns += repeats.check(ROOT, scenes, a.hook, a.repeat_cache, M)
+    except ImportError as ex:
+        Wn(f'picture-repeat check skipped ({ex}): run with the python that has PIL and numpy')
 
 for w in warns:
     print('WARN ', w)
