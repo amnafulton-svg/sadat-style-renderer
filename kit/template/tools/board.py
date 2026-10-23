@@ -37,6 +37,9 @@ def font(n):
 
 def scenes():
     s = (ROOT / 'src/timeline/video.tsx').read_text(encoding='utf8')
+    # sections in src/timeline/parts/s*.tsx (imported by video.tsx): --from/--to found no scenes there (2026-10-23)
+    s += ''.join(p.read_text(encoding='utf8') for p in sorted((ROOT / 'src/timeline/parts').glob('s*.tsx'),
+                                                              key=lambda p: int(p.stem[1:])))
     blocks = re.split(r"(?=\{id: ')", s)[1:]
     out = []
     for b in blocks:

@@ -28,7 +28,7 @@ export type HistoricalTerritory = {
   polygons?: MapCoordinate[][];
   previousCountries?: string[];
   previousPolygons?: MapCoordinate[][];
-  labelAt?: MapCoordinate;
+  labelAt?: MapCoordinate; // the name is drawn here (upright); leave it out for no name
   appearAt?: number;
 };
 

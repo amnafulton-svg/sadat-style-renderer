@@ -322,6 +322,32 @@ export const DocumentaryMap = ({
               );
             })}
 
+            {/* territory names: labelAt was in the type but never drawn (Alaska s04, 2026-10-23); upright, in on the fill */}
+            {(spec.territories ?? []).filter((t) => t.labelAt && t.name).map((territory) => {
+              const [x, y] = project(territory.labelAt!);
+              const at = territory.appearAt ?? 0.05;
+              const on = interpolate(life, [at + 0.05, at + 0.2], [0, 1], clamp01);
+              return (
+                <text
+                  key={`${territory.id}-name`}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  fill="#f4efe2"
+                  fillOpacity={0.92 * on}
+                  stroke="#0b0d0e"
+                  strokeOpacity={0.55 * on}
+                  strokeWidth={4 * u}
+                  paintOrder="stroke"
+                  fontFamily={FONT}
+                  fontSize={28 * u}
+                  letterSpacing={28 * 0.32 * u}
+                >
+                  {territory.name.toUpperCase()}
+                </text>
+              );
+            })}
+
             {/* routes */}
             {routes.map(({route, progress, line, color, head, behind}) => {
               const d = partialD(line, progress);
