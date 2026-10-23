@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          command -v ffprobe >/dev/null || { sudo apt-get update; sudo apt-get install -y ffmpeg; }
+          bash .github/scripts/ffmpeg.sh
           mkdir -p out
           out="out/${{ matrix.stem }}_chunk_${{ matrix.chunk_id }}.mkv"
           range="${{ matrix.frames }}"
@@ -121,6 +121,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.videos) }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
       - uses: actions/download-artifact@v4
         with:
           pattern: chunk-${{ matrix.stem }}-*
@@ -129,7 +132,7 @@ jobs:
           run-id: ${{ inputs.chunks_from_run || github.run_id }}
           github-token: ${{ github.token }}
       - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: bash .github/scripts/ffmpeg.sh
       - name: Stitch chunks and add sound
         shell: bash
         run: |
