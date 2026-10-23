@@ -57,6 +57,7 @@ jobs:
     needs: discover
     if: inputs.chunks_from_run == ''
     runs-on: ubuntu-latest
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       max-parallel: ${{ fromJSON(inputs.max_total_render_jobs) }}
@@ -92,7 +93,8 @@ jobs:
           for attempt in 1 2 3; do
             echo "attempt $attempt/3"
             rm -f "$out"
-            if npx remotion render src/index.ts "${{ matrix.composition }}" "$out" \
+            # a frozen render is killed after 75 min and retried (slowest healthy chunk so far: 57 min)
+            if timeout -k 60 75m npx remotion render src/index.ts "${{ matrix.composition }}" "$out" \
                  --codec=h264-mkv --crf=21 --frames="$range" --concurrency=2 --timeout=120000; then
               got="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$out" || true)"
               if node -e 'const [a,e]=process.argv.slice(1).map(Number); process.exit(Math.abs(a-e)<=0.5?0:1)' "$got" "$expected" && \
