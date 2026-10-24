@@ -333,7 +333,8 @@ const rowValue = (r: NonNullable<ArchiveChart['rows']>[number], t: number, forma
     prev = st.amount;
   }
   if (r.steps?.length) return {amount: shown / Math.max(grow, 1e-6), text, grow};
-  if (r.text && grow < 1) text = fmt(shown, format);
+  // count up only when the row text is the number itself ("71%"); a worded text ("OVER $1 TRILLION") never shows a counting number
+  if (r.text && grow < 1 && r.text.includes(fmt(amount, format))) text = fmt(shown, format);
   return {amount, text, grow};
 };
 
