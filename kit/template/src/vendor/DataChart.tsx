@@ -353,11 +353,16 @@ export const DataChart = ({chart, frame, durationInFrames, backdrop = true}: {
   const a = chart.appear ?? 0;
   const fieldIn = interpolate(t, [a - 0.1, a + 0.4], [0, 1], clamp);
   const body = chart.type === 'line' ? <LineChart chart={chart} t={t} /> : chart.type === 'columns' ? <ColumnChart chart={chart} t={t} /> : <BarChart chart={chart} t={t} />;
+  const leave = chart.until !== undefined ? out : 1;
+  // the backdrop is there from the scene's first frame; only the chart fades in on `appear` (a chart scene cut in
+  // ~1 s before its appear showed pure black under the voice: 6 times in Tax withholding, 2026-10-24)
   return (
-    <AbsoluteFill style={{pointerEvents: 'none', opacity: Math.min(fieldIn, chart.until !== undefined ? out : 1)}}>
+    <AbsoluteFill style={{pointerEvents: 'none', opacity: leave}}>
       {backdrop ? <ChartBackdrop frame={frame} /> : null}
-      <Header chart={chart} t={t} out={1} />
-      {body}
+      <AbsoluteFill style={{opacity: fieldIn}}>
+        <Header chart={chart} t={t} out={1} />
+        {body}
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
