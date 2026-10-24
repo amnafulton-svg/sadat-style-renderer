@@ -34,9 +34,11 @@ a = ap.parse_args()
 ROOT = Path(a.root)
 
 s = (ROOT / a.file).read_text(encoding='utf8')
-# sections may live in src/timeline/parts/s*.tsx (imported by video.tsx, in order): check them as one cut
+# sections may live in src/timeline/parts/s1.tsx, p2.tsx ... (imported by video.tsx, in order): check them as one cut
+# (any letter prefix: the england-plain chat named them p*.tsx and the check silently read 1 empty scene)
 if a.file == 'src/timeline/video.tsx':
-    s += ''.join(p.read_text(encoding='utf8') for p in sorted((ROOT / 'src/timeline/parts').glob('s*.tsx'), key=lambda p: int(p.stem[1:])))
+    parts = [p for p in (ROOT / 'src/timeline/parts').glob('*.tsx') if re.fullmatch(r'[a-z]+\d+', p.stem)]
+    s += ''.join(p.read_text(encoding='utf8') for p in sorted(parts, key=lambda p: int(re.sub(r'\D', '', p.stem))))
 M = json.loads((ROOT / 'src/lib/media.json').read_text())
 W = json.loads((ROOT / 'src/lib/words.json').read_text(encoding='utf8'))
 OV = {'cut': 0, 'dissolve': 22, 'whip': 6, 'whipL': 6, 'torn': 12, 'rack': 0}

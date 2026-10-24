@@ -10,6 +10,7 @@ import {Img, OffthreadVideo, interpolate, staticFile} from 'remotion';
 import {C, FONT, easeOut, prog, rand} from '../lib/core';
 import {useCue, useScene} from '../lib/scene';
 import {GRADE, Grade} from './Film';
+import {safeY} from './Type';
 
 type From = 'left' | 'right' | 'top' | 'bottom' | 'fade';
 
@@ -95,8 +96,8 @@ export const NameStrip: React.FC<{text: string; at: number; x: number; y: number
     <div
       style={{
         position: 'absolute',
-        left: x,
-        top: y,
+        left: Math.max(260, Math.min(x, 1660)),
+        top: safeY(y, size * 1.25 + 30 + (sub ? size : 0)),
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${1.3 - 0.3 * p})`,
         opacity: p,
         background: '#f6f3ec',
@@ -183,7 +184,7 @@ export const DateTag: React.FC<{at: number; text: string; x: number; y: number; 
   const n = Math.max(0, Math.min(text.length, Math.floor((frame - s) / 1.2)));
   const left = Math.min(x, 1920 - 48 - (text.length * size * 0.62 + 56)); // a long date never runs off the right edge
   return (
-    <div style={{position: 'absolute', left, top: y, background: C.tag, padding: '14px 28px', opacity: frame >= s ? 1 : 0, boxShadow: '0 8px 20px rgba(0,0,0,.5)'}}>
+    <div style={{position: 'absolute', left, top: Math.max(40, Math.min(y, 1040 - size * 1.25 - 28)), background: C.tag, padding: '14px 28px', opacity: frame >= s ? 1 : 0, boxShadow: '0 8px 20px rgba(0,0,0,.5)'}}>
       <span style={{fontFamily: FONT.serif, fontSize: size, color: '#f4f0e6', whiteSpace: 'pre'}}>{text.slice(0, n)}</span>
       <span style={{fontFamily: FONT.serif, fontSize: size, color: 'transparent', whiteSpace: 'pre'}}>{text.slice(n)}</span>
     </div>

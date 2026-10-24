@@ -20,6 +20,9 @@ const place = ({x, y, anchor = 'center'}: Pos): React.CSSProperties => ({
   transform: anchor === 'center' ? 'translate(-50%,-50%)' : anchor === 'left' ? 'translate(0,-50%)' : 'translate(-100%,-50%)',
 });
 
+// keeps a label's centre far enough from the top/bottom edge that the whole box (height h) stays 40 px inside the frame
+export const safeY = (y: number, h: number) => Math.max(40 + h / 2, Math.min(y, 1040 - h / 2));
+
 export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; color?: string; sub?: string; bar?: boolean; out?: number}> = ({
   text,
   at,
@@ -80,10 +83,10 @@ export const Highlight: React.FC<Pos & {text: string; at: number; size?: number;
   const {frame} = useScene();
   const s = cue(at) - 3;
   const bar = prog(frame, s, 9);
-  const txt = prog(frame, s + 3, 8);
+  const txt = prog(frame, s + 1, 5);
   const o = out !== undefined ? 1 - prog(frame, cue(out), 6) : 1;
   return (
-    <div style={{...place(pos), opacity: o}}>
+    <div style={{...place({...pos, y: safeY(pos.y, size * 1.2 + 12)}), opacity: o}}>
       <div
         style={{
           position: 'absolute',
@@ -164,7 +167,7 @@ export const LabelTape: React.FC<Pos & {text: string; at: number; size?: number;
   const hi = 1872 - (a === 'center' ? w / 2 : a === 'left' ? w : 0);
   const x = Math.max(lo, Math.min(pos.x, hi));
   return (
-    <div style={{...place({...pos, x}), opacity: frame >= s ? 1 : 0}}>
+    <div style={{...place({...pos, x, y: safeY(pos.y, size * 1.2 + 20)}), opacity: frame >= s ? 1 : 0}}>
       <div
         style={{
           transform: `rotate(${rot}deg)`,
