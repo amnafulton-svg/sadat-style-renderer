@@ -5,7 +5,8 @@
     python tools/source.py ia-get <identifier> "<file>" <topic>   # -> _cache/<topic>/<name>.<ext>
     python tools/source.py commons "<query>" <key> [--rows 8] [--video]
           # -> _cache/commons/<key>_<n>.*, <key>.json (title/license/date/page), <key>_sheet.jpg
-          # Commons rate-limited (429)? It switches to Serper by itself for that search, and every process on
+          # Commons found fewer than 2 images, or is rate-limited (429)? It runs Serper by itself for that search
+          # (found some but none fit the line? run serper yourself). When rate-limited, every process on
           # the machine skips Commons until the block is over (no 90 s retry per call)
     python tools/source.py serper "<query>" <key> [--rows 10]
           # Google Images via Serper: ONLY after Commons (and archive.org) found nothing usable for the line
@@ -183,6 +184,9 @@ def commons(q, key, rows, video):
         print('sheet:', CACHE / 'commons' / f'{key}_sheet.jpg')
     if blocked and len(files) < 3:
         commons_blocked(q, key, rows, video, blocked)
+    elif not video and len(files) < 2:
+        print(f"COMMONS FOUND {len(files)}: searching Google Images (Serper) too -> _cache/serper/{key}_*")
+        serper(q, key, rows)
 
 
 def commons_blocked(q, key, rows, video, why):
