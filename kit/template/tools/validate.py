@@ -8,7 +8,7 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row,
        camera keys outside scale 0.95-1.12 or zooming faster than 3 % per second,
        one picture held over 3+ sentences (> 8 s, outside the hook), a scene that opens on an empty backdrop
-       (its first print/doc lands > 1 s after the cut),
+       (its first print/doc lands > 1 s after the cut), a chart whose first value lands > 4.5 s after its axis (WARN > 3 s),
        and from tools/repeats.py (frames compared by picture, cached in _cache/repeat_hashes.json): the same film shot
        or photo under another file name after the hook, the same setting (gate, crowd, room) again from another
        clip of one source film (_work/clips.tsv, written by cut.py), >= 1 s of blank (black/white/flat) film,
@@ -124,6 +124,18 @@ for sid, fr, to, en, b in scenes:
     if ats and not re.search(r'<(?:F|Film|DocMap|Chart)\b', b) and min(ats) - fr > 1.0:
         E(f'{sid}: nothing on screen for {min(ats) - fr:.1f} s after the cut at {fr} (first print at {min(ats)}); '
           f'start the scene on a picture')
+# an empty chart: the axis is up but its first bar/column/point lands > 3 s later (tax withholding s3/s4, 2026-10-24)
+for sid, fr, to, en, b in scenes:
+    cm = re.search(r'<Chart chart=\{\{(.*)\}\}', b, re.S)
+    if not cm or re.search(r'<(?:F|Film|PhotoPrint|DocCard|DocMap)\b', b):
+        continue
+    ap_ = re.search(r'appear:\s*([\d.]+)', cm.group(1))
+    start = max(fr, float(ap_.group(1)) if ap_ else fr)
+    ats = [float(x) for x in re.findall(r'\bat:\s*([\d.]+)', cm.group(1))]
+    gap = min(ats) - start if ats else 0
+    if gap > 3.0:
+        (E if gap > 4.5 else Wn)(f'{sid}: empty chart for {gap:.1f} s (axis up at {start}, first value at {min(ats)}); '
+                                 f'land the first value within 3 s or start the chart later')
 # no slideshow: type alone on Black/ConcreteWall/Paper (no film, print, document, map or chart under it)
 PIC = re.compile(r'<(F|Film|PhotoPrint|DocCard|DocMap|Chart)\b')
 bare = [(sid, fr, to) for sid, fr, to, en, b in scenes if not PIC.search(b)]
