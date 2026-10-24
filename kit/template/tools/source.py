@@ -5,6 +5,8 @@
     python tools/source.py ia-get <identifier> "<file>" <topic>   # -> _cache/<topic>/<name>.<ext>
     python tools/source.py commons "<query>" <key> [--rows 8] [--video]
           # -> _cache/commons/<key>_<n>.*, <key>.json (title/license/date/page), <key>_sheet.jpg
+          # Commons rate-limited (429)? It switches to Serper by itself for that search, and every process on
+          # the machine skips Commons until the block is over (no 90 s retry per call)
     python tools/source.py serper "<query>" <key> [--rows 10]
           # Google Images via Serper: ONLY after Commons (and archive.org) found nothing usable for the line
           # -> _cache/serper/<key>_<n>.*, <key>.json (title/page/domain/size), <key>_sheet.jpg
@@ -28,6 +30,27 @@ CACHE = ROOT / '_cache'
 UA = {'User-Agent': 'SadatStyleVideoKit/1.1 (https://github.com/amnafulton-svg/sadat-style-renderer; documentary research)'}  # Wikimedia throttles UAs without a contact link
 WIKI_GAP = 1.0       # seconds between Wikimedia requests, machine-wide
 RETRY_BUDGET = 90    # seconds of retrying before a call gives up
+COOLDOWN = Path('/tmp/sadat-wikimedia.cooldown')  # epoch until which Wikimedia is known to refuse us, machine-wide
+
+
+class RateLimited(RuntimeError):
+    pass
+
+
+def cooling():
+    """Seconds left on a Wikimedia block another process already hit (0 = none)."""
+    try:
+        return max(0.0, float(COOLDOWN.read_text()) - time.time())
+    except (OSError, ValueError):
+        return 0.0
+
+
+def cool_down(sec):
+    """Record a block so the other editors go straight to the fallback instead of each retrying into it
+    (england-plain 2026-10-24: 8 parallel editors, Retry-After 600, most Commons calls failed)."""
+    until = time.time() + min(max(sec, 60), 900)
+    if until > time.time() + cooling():
+        COOLDOWN.write_text(str(until))
 
 
 def polite(url):
@@ -48,18 +71,27 @@ def opened(url, timeout):
     """urlopen with retries on 429/5xx (Retry-After honoured). Gives up after RETRY_BUDGET seconds with an error
     that says so, so no call blocks long enough for the editor's prompt cache (5 min) to expire."""
     t0 = time.time()
+    wiki = 'wikimedia.org' in url
     for n in range(8):
+        if wiki and cooling():
+            raise RateLimited(f'Wikimedia is rate-limiting this machine for {cooling() / 60:.0f} more min')
         polite(url)
         try:
             return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout)
         except urllib.error.HTTPError as e:
             if e.code not in (429, 500, 502, 503, 504):
                 raise
-            wait = min(float(e.headers.get('Retry-After') or 0) or 3 * 2 ** n, 30)
+            asked = float(e.headers.get('Retry-After') or 0)
+            if wiki and e.code == 429 and asked > RETRY_BUDGET:
+                cool_down(asked)  # a long block: waiting it out per call only burns the editor's time
+                raise RateLimited(f'Wikimedia rate limit (429, retry after {asked:.0f} s)')
+            wait = min(asked or 3 * 2 ** n, 30)
             if time.time() - t0 + wait > RETRY_BUDGET:
-                raise RuntimeError(f'rate-limited ({e.code}): skip it, carry on with other lines, try again later')
+                if wiki and e.code == 429:
+                    cool_down(120)
+                raise RateLimited(f'rate-limited ({e.code}): skip it, carry on with other lines, try again later')
             time.sleep(wait)
-    raise RuntimeError('rate-limited: skip it, carry on with other lines, try again later')
+    raise RateLimited('rate-limited: skip it, carry on with other lines, try again later')
 
 
 def get(url):
@@ -117,8 +149,11 @@ def commons(q, key, rows, video):
         'action': 'query', 'format': 'json', 'generator': 'search', 'gsrnamespace': 6, 'gsrlimit': rows,
         'gsrsearch': q + (' filetype:video' if video else ' filetype:bitmap'),
         'prop': 'imageinfo', 'iiprop': 'url|size|extmetadata', 'iiurlwidth': 1920})
-    pages = sorted(get(url).get('query', {}).get('pages', {}).values(), key=lambda p: p.get('index', 0))
-    out, files = [], []
+    try:
+        pages = sorted(get(url).get('query', {}).get('pages', {}).values(), key=lambda p: p.get('index', 0))
+    except RateLimited as e:
+        return commons_blocked(q, key, rows, video, e)
+    out, files, blocked = [], [], None
     for i, p in enumerate(pages):
         ii = p['imageinfo'][0]
         meta = ii.get('extmetadata', {})
@@ -127,6 +162,10 @@ def commons(q, key, rows, video):
         dest = CACHE / 'commons' / f'{key}_{i}{ext}'
         try:
             download(src, dest)
+        except RateLimited as e:
+            blocked = e
+            print('  fail', p['title'], e)
+            break  # the rest would be refused too
         except Exception as e:
             print('  fail', p['title'], e)
             continue
@@ -142,6 +181,17 @@ def commons(q, key, rows, video):
     if files and not video:
         sheet_images(files, CACHE / 'commons' / f'{key}_sheet.jpg')
         print('sheet:', CACHE / 'commons' / f'{key}_sheet.jpg')
+    if blocked and len(files) < 3:
+        commons_blocked(q, key, rows, video, blocked)
+
+
+def commons_blocked(q, key, rows, video, why):
+    """Commons refused us: images go to Serper (Google Images) at once; video has no fallback, so say when to retry."""
+    if video:
+        print(f'COMMONS BLOCKED: {why}. Film: use archive.org now, retry Commons video later.')
+        return
+    print(f'COMMONS BLOCKED: {why}. Searching Google Images (Serper) instead -> _cache/serper/{key}_*')
+    serper(q, key, rows)
 
 
 STOCK_SITES = ('shutterstock', 'alamy', 'gettyimages', 'istockphoto', 'dreamstime', 'depositphotos', '123rf',
