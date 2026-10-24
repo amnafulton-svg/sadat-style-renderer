@@ -67,6 +67,8 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - `node tools/stills.mjs <dir> t1 t2 ...`: render single frames of the cut to look at.
 - `tools/validate.py`: the rule check. `tools/repeats.py` (called by validate): same shot/photo twice, blank film.
 - `tools/mapres.py`, `tools/make_textures.py`: map sharpness, paper/wall textures.
+- `tools/docmark.py <doc> "phrase"`: OCR the scan and print the exact `lines:` rects for a mark on those words
+  (`--rows a-b` for whole lines, no phrase to list every line).
 
 ## Lessons from the last chat-made video (england-plain, 2026-10-24): do not repeat these
 1. **The exact place.** A line about Raglan shows Raglan, not another castle; Denbigh, Caerphilly, Rhuddlan each
@@ -79,6 +81,12 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 4. **Never an empty screen.** A scene opens on its picture: the first print/doc lands within 1 s of the cut.
 5. **At most 3 subagents fetching media at once.** Wikimedia blocked the machine when 8 ran together.
 6. Keep what worked: a strong moving opening, real documents with the spoken line highlighted, steady motion.
+7. **A date or number lands on its word.** A DateTag/figure appears when the narrator says it, and the scene that
+   carries it starts at the sentence that says it (not a beat later).
+8. **Marks sit on the printed words.** Every DocCard highlight/underline comes from `tools/docmark.py <doc> "the
+   spoken words"` (OCR), never a box guessed by eye; circles only ring an area (a town, a signature).
+9. **Labels are always on top and readable.** Name tags and labels are never covered by a print that lands later;
+   light type over film or photos keeps its dark backing; keep type off bright sky.
 
 ## Done =
 - `{PY} tools/validate.py` shows **0 ERRORs** (fix every one; WARNs fixed or explained in NOTES.md),

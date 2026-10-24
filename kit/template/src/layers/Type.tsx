@@ -23,6 +23,31 @@ const place = ({x, y, anchor = 'center'}: Pos): React.CSSProperties => ({
 // keeps a label's centre far enough from the top/bottom edge that the whole box (height h) stays 40 px inside the frame
 export const safeY = (y: number, h: number) => Math.max(40 + h / 2, Math.min(y, 1040 - h / 2));
 
+// HOUSE (Chipyong-ni review 2026-10-25): labels, bars and type always sit above the prints and film of their scene
+// (a print that slid in later covered "ENTIRE REGIMENTS DESTROYED"), and light type that is not on paper gets a soft
+// dark pool behind it plus a heavy shadow, so it reads on a white sky ("the manpower, the momentum" vanished at 0:18).
+export const Z_LABEL = 40;
+export const isLight = (c: string) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(c.trim());
+  if (!m) return true;
+  const n = parseInt(m[1], 16);
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.55;
+};
+export const READ_SHADOW = '0 2px 3px rgba(0,0,0,.9), 0 0 18px rgba(0,0,0,.75), 0 0 42px rgba(0,0,0,.5)';
+/** soft dark pool behind light type over film (inside a block with isolation: isolate) */
+export const Scrim: React.FC<{size: number; opacity: number}> = ({size, opacity}) => (
+  <div
+    style={{
+      position: 'absolute',
+      inset: `${-size * 0.55}px ${-size * 1.1}px`,
+      zIndex: -1,
+      opacity,
+      pointerEvents: 'none',
+      background: 'radial-gradient(closest-side, rgba(0,0,0,.68), rgba(0,0,0,.52) 55%, rgba(0,0,0,0))',
+    }}
+  />
+);
+
 export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; color?: string; sub?: string; bar?: boolean; out?: number}> = ({
   text,
   at,
@@ -33,14 +58,16 @@ export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; 
   out,
   ...pos
 }) => {
-  const color = colorIn ?? (React.useContext(OnPaper) && !bar ? C.ink : C.cream);
+  const paper = React.useContext(OnPaper);
+  const color = colorIn ?? (paper && !bar ? C.ink : C.cream);
   const cue = useCue();
   const {frame} = useScene();
   const s = cue(at) - 2;
   const p = prog(frame, s, 10);
   const o = out !== undefined ? 1 - prog(frame, cue(out), 8) : 1;
   return (
-    <div style={{...place(pos), opacity: p * o, textAlign: 'center'}}>
+    <div style={{...place(pos), opacity: p * o, textAlign: 'center', zIndex: Z_LABEL, isolation: 'isolate'}}>
+      {!bar && !paper && isLight(color) && <Scrim size={size * 0.5} opacity={1} />}
       {bar && (
         <div
           style={{
@@ -62,7 +89,7 @@ export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; 
           letterSpacing: -2,
           filter: `blur(${(1 - p) * 14}px)`,
           transform: `scale(${1.12 - 0.12 * p})`,
-          textShadow: '0 10px 40px rgba(0,0,0,.7)',
+          textShadow: paper ? '0 10px 40px rgba(0,0,0,.7)' : READ_SHADOW,
           whiteSpace: 'nowrap',
         }}
       >
@@ -86,7 +113,7 @@ export const Highlight: React.FC<Pos & {text: string; at: number; size?: number;
   const txt = prog(frame, s + 1, 5);
   const o = out !== undefined ? 1 - prog(frame, cue(out), 6) : 1;
   return (
-    <div style={{...place({...pos, y: safeY(pos.y, size * 1.2 + 12)}), opacity: o}}>
+    <div style={{...place({...pos, y: safeY(pos.y, size * 1.2 + 12)}), opacity: o, zIndex: Z_LABEL}}>
       <div
         style={{
           position: 'absolute',
@@ -117,8 +144,10 @@ export const QuoteText: React.FC<Pos & {words: {w: string; at: number}[]; size?:
   const color = colorIn ?? (paper ? C.ink : C.cream);
   const cue = useCue();
   const {frame} = useScene();
+  const light = !paper && isLight(color);
   return (
-    <div style={{...place(pos), width, fontFamily: FONT.serif, fontSize: size, lineHeight: 1.32, color}}>
+    <div style={{...place(pos), width, fontFamily: FONT.serif, fontSize: size, lineHeight: 1.32, color, zIndex: Z_LABEL, isolation: 'isolate', textShadow: light ? READ_SHADOW : undefined}}>
+      {light && words.length > 0 && <Scrim size={size} opacity={prog(frame, cue(words[0].at) - 2, 7)} />}
       {words.map((x, i) => {
         const p = prog(frame, cue(x.at) - 2, 7);
         const m = mark.includes(x.w);
@@ -167,7 +196,7 @@ export const LabelTape: React.FC<Pos & {text: string; at: number; size?: number;
   const hi = 1872 - (a === 'center' ? w / 2 : a === 'left' ? w : 0);
   const x = Math.max(lo, Math.min(pos.x, hi));
   return (
-    <div style={{...place({...pos, x, y: safeY(pos.y, size * 1.2 + 20)}), opacity: frame >= s ? 1 : 0}}>
+    <div style={{...place({...pos, x, y: safeY(pos.y, size * 1.2 + 20)}), opacity: frame >= s ? 1 : 0, zIndex: Z_LABEL}}>
       <div
         style={{
           transform: `rotate(${rot}deg)`,
@@ -203,8 +232,10 @@ export const ListWords: React.FC<Pos & {items: {w: string; at: number}[]; size?:
   const cue = useCue();
   const {frame} = useScene();
   const lastOn = items.filter((x) => frame >= cue(x.at) - 2).length - 1;
+  const light = !inline && !React.useContext(OnPaper) && isLight(color);
   return (
-    <div style={{...(inline ? {marginTop: 14} : place(pos)), textAlign: pos.anchor === 'left' ? 'left' : 'center'}}>
+    <div style={{...(inline ? {marginTop: 14} : place(pos)), textAlign: pos.anchor === 'left' ? 'left' : 'center', ...(inline ? {} : {zIndex: Z_LABEL, isolation: 'isolate'})}}>
+      {light && items.length > 0 && <Scrim size={size} opacity={prog(frame, cue(items[0].at) - 2, 7)} />}
       {items.map((x, i) => {
         const p = prog(frame, cue(x.at) - 2, 7);
         return (
@@ -218,6 +249,7 @@ export const ListWords: React.FC<Pos & {items: {w: string; at: number}[]; size?:
               opacity: p * (dim && i < lastOn ? 0.45 : 1),
               transform: `translateY(${(1 - p) * 18}px)`,
               filter: `blur(${(1 - p) * 8}px)`,
+              textShadow: light ? READ_SHADOW : undefined,
               whiteSpace: 'nowrap',
             }}
           >

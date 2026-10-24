@@ -12,7 +12,10 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        and from tools/repeats.py (frames compared by picture, cached in _cache/repeat_hashes.json): the same film shot
        or photo under another file name after the hook, the same setting (gate, crowd, room) again from another
        clip of one source film (_work/clips.tsv, written by cut.py), >= 1 s of blank (black/white/flat) film,
-       a silent-film title card (intertitle) inside what a scene shows.
+       a silent-film title card (intertitle) inside what a scene shows,
+       a DocCard mark that is not on printed lines of its scan (OCR, tools/docmark.py: beside the text, cutting
+       through a line, or running far past it), a date/number tag (DateTag, BigSerif, Highlight, LabelTape, BlackTag)
+       landing > 0.6 s after the narrator says it.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -32,6 +35,7 @@ ap.add_argument('--no-repeats', action='store_true', help='skip the picture-repe
 ap.add_argument('--repeat-cache', help='hash cache file (default _cache/repeat_hashes.json)')
 a = ap.parse_args()
 ROOT = Path(a.root)
+PYEXE = Path(sys.executable).as_posix()
 
 s = (ROOT / a.file).read_text(encoding='utf8')
 # sections may live in src/timeline/parts/s1.tsx, p2.tsx ... (imported by video.tsx, in order): check them as one cut
@@ -184,6 +188,94 @@ for at, n in burns:
     film = lambda b: b.lstrip().find('<F ') != -1 and '<Desk' not in b and '<Paper' not in b and '<DocMap' not in b and '<Chart' not in b and '<DocCard' not in b
     if film(scenes[i - 1][4]) and film(scenes[i][4]):
         E(f'burn at {at}: film -> film ({scenes[i - 1][0]} -> {scenes[i][0]}); burns only on a layer change')
+
+# document marks sit on the printed words (Chipyong-ni 2026-10-25: two plaque boxes guessed by eye sat beside the
+# text): every mark rect must hold OCR lines, not cut through one, and not run more than a line past them
+import docmark  # noqa: E402
+
+for sid, fr, to, en, b in scenes:
+    for dm in re.finditer(r'<DocCard\b.*?photo="([^"]+)"(.*?)/>', b, re.S):
+        doc, body = dm.groups()
+        mk = re.search(r'marks=\{\[(.*)\]\}', body, re.S)
+        if not mk:
+            continue
+        # a circle rings an area (a town on a map, a signature): only highlight/underline marks must sit on words
+        quad = r'\[\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\s*\]'
+        rects = [[float(v) for v in q] for o in re.findall(r'\{[^{}]*\}', mk.group(1)) if 'circle' not in o
+                 for q in re.findall(quad, o)]
+        if not rects:
+            continue
+        d = docmark.ocr(ROOT, doc)
+        if d is None:
+            Wn(f'{sid}: marks on {doc} not checked (no OCR: install ~/yt/.venv-ocr)')
+            continue
+        if len(d['lines']) < 2:
+            Wn(f'{sid}: OCR reads no text on {doc}; a mark there cannot be checked (prefer a legible scan)')
+            continue
+        lh = sorted(ln['box'][3] - ln['box'][1] for ln in d['lines'])[len(d['lines']) // 2]
+        lw = lh * d['h'] / d['w']
+        # a box taller than 4 lines is a headline when it is wide and spells words, else a pencil stroke or a stamp
+        def printed(ln):
+            x0, y0, x1, y1 = ln['box']
+            return y1 - y0 <= 4 * lh or ((x1 - x0) * d['w'] >= 2 * (y1 - y0) * d['h']
+                                         and sum(c.isalnum() for c in ln['text']) >= 4)
+        text_lines = [ln for ln in d['lines'] if printed(ln)]
+        for r in rects:
+            on, cut = [], []
+            for ln in text_lines:
+                x0, y0, x1, y1 = ln['box']
+                hx = min(r[2], x1) - max(r[0], x0)
+                if hx <= 0.3 * min(r[2] - r[0], x1 - x0):
+                    continue
+                v = (min(r[3], y1) - max(r[1], y0)) / max(y1 - y0, 1e-6)
+                if v >= 0.6:  # docmark stops halfway into the overlap of tight lines
+                    on.append(ln)
+                elif v >= 0.25:
+                    cut.append(ln)
+            fix = f'run: {PYEXE} tools/docmark.py {doc} "the spoken words"'
+            if not on:
+                E(f'{sid}: mark {r} on {doc} is not on any printed line ({fix})')
+                continue
+            top, bot = min(ln['box'][1] for ln in on), max(ln['box'][3] for ln in on)
+            for ln in cut:
+                # OCR boxes of tall or tight type overlap their neighbours: only the part of the line the mark covers
+                # beyond the lines it is on counts as cutting through it
+                y0, y1 = max(r[1], ln['box'][1]), min(r[3], ln['box'][3])
+                extra = max(0, min(y1, top) - y0) + max(0, y1 - max(y0, bot))
+                if extra < 0.25 * (ln['box'][3] - ln['box'][1]):
+                    continue
+                E(f'{sid}: mark {r} on {doc} cuts through the line "{ln["text"][:40]}" ({fix})')
+            left, right = min(ln['box'][0] for ln in on), max(ln['box'][2] for ln in on)
+            if r[1] < top - lh or r[3] > bot + lh or r[0] < left - 2 * lw or r[2] > right + 2 * lw:
+                E(f'{sid}: mark {r} on {doc} runs past its text (printed lines span {[left, top, right, bot]}; {fix})')
+
+# a date or figure on screen lands when the narrator says it (Chipyong-ni 2026-10-25: "25 October 1950" appeared
+# after the date was spoken, because the scene cut came after the sentence had started)
+MONTHS = 'january february march april may june july august september october november december'.split()
+TAGS = re.compile(r'<(DateTag|BigSerif|Highlight|LabelTape|BlackTag)\b([^>]*?)/?>(?:([^<]{1,80})</\1>)?', re.S)
+for sid, fr, to, en, b in scenes:
+    for tm in TAGS.finditer(b):
+        kind, attrs, inner = tm.groups()
+        txt = (re.search(r'\btext="([^"]+)"', attrs) or re.search(r"\btext='([^']+)'", attrs))
+        txt = txt.group(1) if txt else (inner or '')
+        at = re.search(r'\bat=\{([\d.]+)\}', attrs)
+        if not at or not txt:
+            continue
+        at = float(at.group(1))
+        keys = [k for k in (re.sub(r'[^\w]', '', t.lower().replace(',', '')) for t in txt.split())
+                if (k.isdigit() and len(k) >= 2) or k in MONTHS]
+        said = []
+        for k in keys:
+            hits = [w['s'] for w in W if fr - 2.5 <= w['s'] <= to and re.sub(r'[^\w]', '', w['w'].lower().replace(',', '')) == k]
+            if hits:
+                said.append(min(hits, key=lambda t: abs(t - at)))
+        if not said:
+            continue
+        t = min(said)
+        if at - t > 0.6:
+            hint = (f'the sentence starts before the scene at {fr}: start this scene at that sentence' if t < fr
+                    else f'set at={{{t:.2f}}}')
+            E(f'{sid}: {kind} "{txt}" lands at {at} but the narrator says it at {t:.2f} ({at - t:.1f} s late; {hint})')
 
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN

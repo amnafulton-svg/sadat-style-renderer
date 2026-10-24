@@ -56,7 +56,8 @@ Moving between these three planes means something. Film → board says "now look
    (every named person on screen gets one; `sub` = country or role).
 3. **Geography (journey, border, spread, territory)?** → `DocMap`. Not for biography lines ("born in X").
 4. **A document is quoted or named (a law, treaty, letter, headline)?** → `DocCard` with the real scan, the quoted
-   words marked as they are spoken.
+   words marked as they are spoken. **HOUSE:** the mark's `lines` come from `tools/docmark.py <scan> "the words"`
+   (OCR), never a box guessed by eye; validate errors on a mark that is not on printed lines.
 5. **Numbers the script gives?** → `Chart` (line or bars) landing on the spoken figures, or `BigSerif` for one number
    **over film or a print** of what the number counts (bank crowds under a bank count, bread lines under jobless %).
 6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`
@@ -124,6 +125,11 @@ A transition used for decoration means nothing, so most changes are hard cuts.
 - **HOUSE: text must read against what is under it.** `BigSerif`/`ListWords` default to cream: on `Paper`, light
   desks, pale sky or white print borders give them dark ink (`color`) or a dark plate. Tags, tapes and bars sit beside
   prints, not on their edges or captions, and stay inside the frame at the end of every camera move.
+  Light type over film gets a dark backing by itself; still keep it off the brightest part of the frame (sky).
+  Labels always draw above prints, so a print landing later never hides a bar.
+- **HOUSE: a date or number lands on its word.** A `DateTag`, `BigSerif`, `Highlight` or tape carrying a date or
+  figure appears by the time it is said (validate errors when it lands > 0.6 s late). If the sentence that says the
+  date starts during the scene before, the new scene starts at that sentence, not on the next comma.
 
 ## 7. Sound
 

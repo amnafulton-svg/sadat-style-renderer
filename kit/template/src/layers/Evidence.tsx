@@ -26,9 +26,13 @@ export const DocMap: React.FC<{spec: HistoricalMapSpec; id: number}> = ({spec, i
   return <DocumentaryMap scene={scene} spec={local} frame={frame} durationInFrames={durFrames} holdStart holdEnd />;
 };
 
-type Mark = {box: [number, number, number, number]; at: number; until?: number; style?: 'highlight' | 'underline' | 'circle'};
+type Rect = [number, number, number, number];
+// HOUSE (Chipyong-ni review 2026-10-25): guessed boxes sat beside or across the printed words. A mark's `lines` come
+// from tools/docmark.py (OCR of the scan: one rect per printed line); tools/validate.py errors on a mark that does not
+// sit on printed lines. `box` (one rect) is still read, and checked the same way.
+type Mark = {lines?: Rect[]; box?: Rect; at: number; until?: number; style?: 'highlight' | 'underline' | 'circle'};
 
-/** a real scan; `at` and each mark's at/until in narration seconds; boxes as [x0, y0, x1, y1] fractions of the scan */
+/** a real scan; `at` and each mark's at/until in narration seconds; rects as [x0, y0, x1, y1] fractions of the scan */
 export const DocCard: React.FC<{photo: string; aspect: number; at: number; source: string; marks: Mark[]}> = ({photo, aspect, at, source, marks}) => {
   const {frame, startFrame, durFrames} = useScene();
   const rel = (s: number) => (nf(s) - startFrame) / 25;
@@ -43,7 +47,7 @@ export const DocCard: React.FC<{photo: string; aspect: number; at: number; sourc
         at: rel(at),
         source,
         marks: marks.map((m) => ({
-          rects: [[m.box[0], m.box[1], m.box[2] - m.box[0], m.box[3] - m.box[1]]],
+          rects: (m.lines ?? (m.box ? [m.box] : [])).map((b) => [b[0], b[1], b[2] - b[0], b[3] - b[1]] as Rect),
           at: rel(m.at),
           until: m.until === undefined ? undefined : rel(m.until),
           style: m.style ?? 'highlight',
