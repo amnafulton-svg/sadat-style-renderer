@@ -184,12 +184,12 @@ export const GhostTitle: React.FC<Pos & {text: string; size?: number}> = ({text,
   );
 };
 
-/** Dymo-style embossed tape, typed on one character every frame */
+/** Dymo-style embossed tape, typed on one character every frame (long tapes faster: done in 0.6 s) */
 export const LabelTape: React.FC<Pos & {text: string; at: number; size?: number; rot?: number}> = ({text, at, size = 40, rot = -1.5, ...pos}) => {
   const cue = useCue();
   const {frame} = useScene();
   const s = cue(at) - 3;
-  const n = Math.max(0, Math.min(text.length, Math.floor(frame - s)));
+  const n = Math.max(0, Math.min(text.length, Math.floor((frame - s) / Math.min(1, 15 / Math.max(1, text.length)))));  // typed in <= 0.6 s
   const w = text.length * (size * 0.6 + 4) + 52; // a long tape never runs off the frame
   const a = pos.anchor ?? 'center';
   const lo = 48 + (a === 'center' ? w / 2 : a === 'right' ? w : 0);

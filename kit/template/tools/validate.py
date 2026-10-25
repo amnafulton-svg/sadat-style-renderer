@@ -15,7 +15,8 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a silent-film title card (intertitle) inside what a scene shows,
        a DocCard mark that is not on printed lines of its scan (OCR, tools/docmark.py: beside the text, cutting
        through a line, or running far past it), a date/number tag (DateTag, BigSerif, Highlight, LabelTape, BlackTag)
-       landing > 0.6 s after the narrator says it.
+       landing > 0.6 s after the narrator says it, text (tags, tapes, type, quotes) that is not on screen for
+       1 s (0.25 s per word if longer) after it has typed/faded on before its scene cuts, hook included.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -276,6 +277,45 @@ for sid, fr, to, en, b in scenes:
             hint = (f'the sentence starts before the scene at {fr}: start this scene at that sentence' if t < fr
                     else f'set at={{{t:.2f}}}')
             E(f'{sid}: {kind} "{txt}" lands at {at} but the narrator says it at {t:.2f} ({at - t:.1f} s late; {hint})')
+
+# text must stay on screen long enough to read once it has typed / faded on (Italy 2026-10-25: "11 days earlier" and
+# "The referendum ballot / Republic or Monarchy" sat on a 1.24 s hook scene and the cut came while they were still
+# typing). Applies in the hook too: a fast montage cuts pictures, not half-read words.
+# seconds from at= until the text is fully on (matches the components in src/layers at 25 fps)
+ON = {'DateTag': lambda n: (min(n * 1.2, 15) - 4) / 25, 'LabelTape': lambda n: (min(n, 15) - 3) / 25, 'BlackTag': lambda n: 5 / 25,
+      'NameStrip': lambda n: 6 / 25, 'BigSerif': lambda n: 8 / 25, 'Highlight': lambda n: 6 / 25,
+      'KraftNote': lambda n: 3 / 25}
+READ = re.compile(r'<(DateTag|LabelTape|BlackTag|NameStrip|BigSerif|Highlight|KraftNote)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', re.S)
+
+
+def attr(attrs, k):
+    m = re.search(rf'\b{k}=(?:"([^"]*)"|\'([^\']*)\'|\{{\s*([\d.]+)\s*\}})', attrs)
+    return None if not m else (m.group(1) if m.group(1) is not None else m.group(2) if m.group(2) is not None else m.group(3))
+
+
+for sid, fr, to, en, b in scenes:
+    items = []
+    for tm in READ.finditer(b):
+        kind, attrs = tm.groups()
+        txt = ' '.join(x for x in (attr(attrs, k) for k in ('text', 'title', 'line1', 'line2', 'sub')) if x)
+        at = attr(attrs, 'at')
+        if at is None or not txt:
+            continue
+        out = attr(attrs, 'out')
+        items.append((kind, txt, float(at), float(out) if out else to))
+    # QuoteText / ListWords: the line is on once its last word has popped in
+    for qm in re.finditer(r'<(QuoteText|ListWords)\b[^>]*?(?:words|items)=\{\[(.*?)\]\}', b, re.S):
+        ws = re.findall(r"""\{\s*w:\s*(?:'([^']*)'|"([^"]*)")\s*,\s*at:\s*([\d.]+)""", qm.group(2))
+        if ws:
+            items.append((qm.group(1), ' '.join(x or y for x, y, _ in ws), max(float(t) for *_, t in ws), to))
+    for kind, txt, at, end in items:
+        on = max(fr, at + ON.get(kind, lambda n: 5 / 25)(len(txt)))
+        need = max(1.0, 0.25 * len(txt.split()))
+        if min(end, to) - on < need - 0.02:
+            left = min(end, to) - on
+            E(f'{sid}: {kind} "{txt[:50]}" is fully on at {on:.2f} but the scene cuts at {min(end, to):.2f} '
+              f'({max(left, 0):.2f} s to read, needs {need:.1f} s): hold the scene to {on + need:.2f} on the next sentence '
+              f'end/pause, cue it earlier, or move/drop the tag (hook included)')
 
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN

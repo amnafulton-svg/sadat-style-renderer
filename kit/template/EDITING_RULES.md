@@ -130,6 +130,10 @@ A transition used for decoration means nothing, so most changes are hard cuts.
 - **HOUSE: a date or number lands on its word.** A `DateTag`, `BigSerif`, `Highlight` or tape carrying a date or
   figure appears by the time it is said (validate errors when it lands > 0.6 s late). If the sentence that says the
   date starts during the scene before, the new scene starts at that sentence, not on the next comma.
+- **HOUSE: text stays long enough to read (hook included).** Every tag, tape, word or quote is fully on screen
+  for at least 1 s (0.25 s per word when longer: a 6-word BlackTag needs 1.5 s) before its scene cuts. A tag that
+  lands near a cut goes on the next scene, or the cut moves to a later sentence end; never put a tag on a scene
+  too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing).
 
 ## 7. Sound
 

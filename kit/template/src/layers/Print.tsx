@@ -178,12 +178,12 @@ export const BlackTag: React.FC<{at: number; x: number; y: number; line1: string
   );
 };
 
-/** black date tag with white serif date ("24 October 1972" in the reference); typed on letter by letter */
+/** black date tag with white serif date ("24 October 1972" in the reference); typed on letter by letter (done in 0.6 s at most) */
 export const DateTag: React.FC<{at: number; text: string; x: number; y: number; size?: number}> = ({at, text, x, y, size = 46}) => {
   const cue = useCue();
   const {frame} = useScene();
   const s = cue(at) - 4;
-  const n = Math.max(0, Math.min(text.length, Math.floor((frame - s) / 1.2)));
+  const n = Math.max(0, Math.min(text.length, Math.floor((frame - s) / Math.min(1.2, 15 / Math.max(1, text.length)))))  // typed in <= 0.6 s;
   const left = Math.min(x, 1920 - 48 - (text.length * size * 0.62 + 56)); // a long date never runs off the right edge
   return (
     <div style={{position: 'absolute', left, top: Math.max(40, Math.min(y, 1040 - size * 1.25 - 28)), background: C.tag, padding: '14px 28px', opacity: frame >= s ? 1 : 0, boxShadow: '0 8px 20px rgba(0,0,0,.5)', zIndex: Z_LABEL}}>
