@@ -2,7 +2,8 @@
 // PhotoPrint: a real photo as a physical print (white border, slight tilt, drop shadow) that flies in from
 //   off-screen in ~0.3 s and settles, one per narrated beat, accumulating into a cluster. WHY: a group of
 //   people / a list of things is shown as evidence being laid on the table, so the count builds with the voice.
-// NameStrip: torn white paper strip with a serif name, slapped on when the person is NAMED.
+// NameStrip: torn white paper strip with a serif name, slapped on when the person is NAMED. On a photo it is the
+//   print's own names=[{text, sub, at, fx}]: hung under the photo's bottom edge, people's order left to right (fx).
 // RedCircle: hand-drawn marker loop around one face/detail: "this one".
 // BlackTag / DateTag: small black label (who / when), the reference's date & name tags.
 import React from 'react';
@@ -30,7 +31,8 @@ export const PhotoPrint: React.FC<{
   film?: {start: number; rate?: number}; // src is then a clip in public/footage: moving film inside the print (needs aspect)
   children?: React.ReactNode; // annotations in print-local px
   tag?: {line1: string; line2?: string; at?: number; size?: number}; // the print's black caption, stuck on its bottom-left edge
-}> = ({src, at, x, y, w, rot = 0, from = 'bottom', grade = 'sepia', border = 14, objectPosition = 'center', aspect, drift = 18, film, children, tag}) => {
+  names?: PrintNameT[]; // name strips hung under the photo; fx = where that person stands (0-1) orders them left to right
+}> = ({src, at, x, y, w, rot = 0, from = 'bottom', grade = 'sepia', border = 14, objectPosition = 'center', aspect, drift = 18, film, children, tag, names}) => {
   const cue = useCue();
   const {frame, durFrames} = useScene();
   const start = cue(at) - 8; // lands on the word: the 8-frame flight ends as the word starts
@@ -74,9 +76,68 @@ export const PhotoPrint: React.FC<{
         )}
         {children}
       </div>
+      {names && (
+        // one row hanging off the bottom edge (half on the white border, half below), people's order left to right;
+        // right-aligned when the black caption takes the bottom-left corner
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            transform: 'translateY(55%)',
+            display: 'flex',
+            justifyContent: tag ? 'flex-end' : 'center',
+            alignItems: 'flex-start',
+            gap: 16,
+            padding: tag ? '0 18px 0 0' : 0,
+            zIndex: 3,
+          }}
+        >
+          {[...names].sort((a, b) => (a.fx ?? 0.5) - (b.fx ?? 0.5)).map((n, i) => (
+            <PrintName key={i} {...n} />
+          ))}
+        </div>
+      )}
       {tag && <PrintTag {...tag} at={tag.at ?? at + 0.2} />}
     </div>
   );
+};
+
+type PrintNameT = {text: string; sub?: string; at: number; fx?: number; fy?: number; rot?: number; size?: number}; // fx: where the person stands (0-1), only orders the row
+
+/** a name strip hanging under the photo it names, in the row of the print's names (producer, cannabis 6:00
+ *  2026-10-25: free strips floated beside the photo, "where does it belongs?"; then strips on the faces: "the white
+ *  tag should be under the image not on the face") */
+const PrintName: React.FC<PrintNameT> = ({text, sub, at, rot = -2, size = 34}) => {
+  const cue = useCue();
+  const {frame} = useScene();
+  const p = prog(frame, cue(at), 6);
+  return (
+    <div
+      style={{
+        transform: `rotate(${rot}deg) scale(${1.3 - 0.3 * p})`,
+        opacity: p,
+        background: '#f6f3ec',
+        padding: '12px 26px 10px',
+        clipPath: torn(text),
+        boxShadow: '0 6px 14px rgba(0,0,0,.5)',
+        zIndex: 3,
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <div style={{fontFamily: FONT.serif, fontSize: size, color: '#151515', lineHeight: 1.05}}>{text}</div>
+      {sub && <div style={{fontFamily: FONT.serif, fontStyle: 'italic', fontSize: size * 0.5, color: '#444', marginTop: 3}}>{sub}</div>}
+    </div>
+  );
+};
+
+/** torn top and bottom edges of a paper strip (seeded by its text) */
+const torn = (text: string) => {
+  const top = Array.from({length: 18}, (_, i) => `${(i / 17) * 100}% ${i % 2 ? 0 : 7 + rand(i + text.length) * 8}%`).join(',');
+  const bot = Array.from({length: 18}, (_, i) => `${100 - (i / 17) * 100}% ${i % 2 ? 100 : 93 - rand(i * 3 + text.length) * 8}%`).join(',');
+  return `polygon(${top},${bot})`;
 };
 
 /** the caption of one print, stuck across its bottom-left edge (60 % on the print, 40 % below), so it always sits
@@ -119,8 +180,6 @@ export const NameStrip: React.FC<{text: string; at: number; x: number; y: number
   const cue = useCue();
   const {frame} = useScene();
   const p = prog(frame, cue(at), 6);
-  const jag = Array.from({length: 18}, (_, i) => `${(i / 17) * 100}% ${i % 2 ? 0 : 7 + rand(i + text.length) * 8}%`).join(',');
-  const jagB = Array.from({length: 18}, (_, i) => `${100 - (i / 17) * 100}% ${i % 2 ? 100 : 93 - rand(i * 3 + text.length) * 8}%`).join(',');
   return (
     <div
       style={{
@@ -131,7 +190,7 @@ export const NameStrip: React.FC<{text: string; at: number; x: number; y: number
         opacity: p,
         background: '#f6f3ec',
         padding: '16px 34px 14px',
-        clipPath: `polygon(${jag},${jagB})`,
+        clipPath: torn(text),
         boxShadow: '0 6px 14px rgba(0,0,0,.5)',
         zIndex: Z_LABEL,
         textAlign: 'center',

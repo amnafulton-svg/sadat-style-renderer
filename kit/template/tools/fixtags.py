@@ -18,7 +18,7 @@ ap.add_argument('--dry-run', action='store_true')
 a = ap.parse_args()
 ROOT = pathlib.Path(a.root)
 
-PRINT = re.compile(r'<PhotoPrint\b((?:[^>"{]|"[^"]*"|\{\{.*?\}\}|\{[^{}]*\})*?)(\s*/?>)', re.S)
+PRINT = re.compile(r'<PhotoPrint\b((?:[^>"{]|"[^"]*"|\{\[.*?\]\}|\{\{.*?\}\}|\{[^{}]*\})*?)(\s*/?>)', re.S)
 TAG = re.compile(r'[ \t]*<BlackTag\b((?:[^>"{]|"[^"]*"|\{[^{}]*\})*?)/>[ \t]*\n?', re.S)
 SCENE = re.compile(r"\{id:\s*'([^']+)'.*?(?=\n\s*\{id:\s*'|\Z)", re.S)
 

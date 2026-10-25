@@ -19,7 +19,9 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        1 s (0.25 s per word if longer) after it has typed/faded on before its scene cuts, hook included,
        a shot whose only picture is one PhotoPrint of a wide photo that holds up full screen (aspect >= 1.3,
        enlarged <= 1.6x to cover 1920x1080) and is not a FullPhoto, a FullPhoto of a photo too small or tall for it,
-       a free BlackTag in a shot with one print (it is the print's tag=), a print caption running off the frame.
+       a free BlackTag in a shot with one print (it is the print's tag=), a print caption running off the frame,
+       a free NameStrip in a shot with a print (it is the print's names=, hung under the photo), print names
+       running off the frame, into the print's black caption, or far wider than the photo.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -291,6 +293,26 @@ ON = {'DateTag': lambda n: (min(n * 1.2, 15) - 4) / 25, 'LabelTape': lambda n: (
 READ = re.compile(r'<(DateTag|LabelTape|BlackTag|NameStrip|BigSerif|Highlight|KraftNote)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', re.S)
 
 
+def _q(a, k):
+    m = re.search(rf"""\b{k}:\s*(?:'([^']*)'|"([^"]*)")""", a)
+    return (m.group(1) if m.group(1) is not None else m.group(2)) if m else ''
+
+
+
+_TITLES = {'king', 'queen', 'prince', 'princess', 'pope', 'president', 'general', 'colonel', 'duke', 'duchess',
+           'saint', 'emperor', 'empress', 'family', 'house', 'lord', 'lady', 'count', 'baron', 'captain', 'admiral'}
+
+
+def _fitw(pa, asp):
+    """a print's w: its w={..}, or from the project's {...fit(src, maxW, maxH)} helper (timeline/kit.tsx)"""
+    m = re.search(r'\bw=\{\s*([\d.]+)\s*\}', pa)
+    if m:
+        return float(m.group(1))
+    f = re.search(r"\{\.\.\.fit\('[^']*'(?:,\s*([\d.]+))?(?:,\s*([\d.]+))?", pa)
+    if f and asp:
+        return round(min(float(f.group(1) or 1200), (float(f.group(2) or 820) - 28) * asp + 28))
+    return None
+
 def attr(attrs, k):
     m = re.search(rf'\b{k}=(?:"([^"]*)"|\'([^\']*)\'|\{{\s*([\d.]+)\s*\}})', attrs)
     return None if not m else (m.group(1) if m.group(1) is not None else m.group(2) if m.group(2) is not None else m.group(3))
@@ -313,6 +335,11 @@ for sid, fr, to, en, b in scenes:
         pa = attr(pm.group(1), 'at')
         if txt and (ta or pa):
             items.append(('BlackTag', txt, float(ta.group(1)) if ta else float(pa) + 0.2, to))
+    for nm in re.finditer(r'<PhotoPrint\b(?:[^>"]|"[^"]*")*?\bnames=\{\[(.*?)\]\}', b, re.S):
+        for e in re.finditer(r'\{([^{}]*)\}', nm.group(1)):
+            t, na = _q(e.group(1), 'text'), re.search(r'\bat:\s*([\d.]+)', e.group(1))
+            if t and na:
+                items.append(('NameStrip', ' '.join(x for x in (t, _q(e.group(1), 'sub')) if x), float(na.group(1)), to))
     # QuoteText / ListWords: the line is on once its last word has popped in
     for qm in re.finditer(r'<(QuoteText|ListWords)\b[^>]*?(?:words|items)=\{\[(.*?)\]\}', b, re.S):
         ws = re.findall(r"""\{\s*w:\s*(?:'([^']*)'|"([^"]*)")\s*,\s*at:\s*([\d.]+)""", qm.group(2))
@@ -364,13 +391,8 @@ for sid, fr, to, en, b in scenes if Image else []:
 # a print's caption sits under the print it names (producer, cannabis 2026-10-25: "why the text in the black box is
 # not under the image?"; 14-78 hand-placed BlackTags per video sat across the frame from their print): in a shot with
 # one print the caption is that print's tag={{line1, line2}}, which PhotoPrint sticks on its bottom-left edge
-def _q(a, k):
-    m = re.search(rf"""\b{k}:\s*(?:'([^']*)'|"([^"]*)")""", a)
-    return (m.group(1) if m.group(1) is not None else m.group(2)) if m else ''
-
-
 for sid, fr, to, en, b in scenes:
-    pp = list(re.finditer(r'<PhotoPrint\b((?:[^>"{]|"[^"]*"|\{\{.*?\}\}|\{[^{}]*\})*?)/?>', b, re.S))
+    pp = list(re.finditer(r'<PhotoPrint\b((?:[^>"{]|"[^"]*"|\{\[.*?\]\}|\{\{.*?\}\}|\{[^{}]*\})*?)/?>', b, re.S))
     if len(pp) == 1:
         for tm in re.finditer(r'<BlackTag\b[^>]*?line1="([^"]*)"', b):
             E(f'{sid}: BlackTag "{tm.group(1)}" floats free beside the shot\'s only print: make it the print\'s caption, '
@@ -382,8 +404,8 @@ for sid, fr, to, en, b in scenes:
             continue
         g = lambda k, d=None: (lambda m: float(m.group(1)) if m else d)(re.search(rf'\b{k}=\{{\s*(-?[\d.]+)\s*\}}', pa))
         src = re.search(r'\bsrc="([^"]+)"', pa)
-        x, y, w, asp, bd = g('x'), g('y'), g('w'), g('aspect'), g('border', 14)
-        if None in (x, y, w) or not src:
+        x, y, asp, bd = g('x'), g('y'), g('aspect'), g('border', 14)
+        if None in (x, y) or not src:
             continue
         if asp is None and 'film=' not in pa:
             try:
@@ -391,7 +413,8 @@ for sid, fr, to, en, b in scenes:
                 asp = iw / ih
             except Exception:
                 continue
-        if not asp:
+        w = _fitw(pa, asp)
+        if not asp or not w:
             continue
         t = tg.group(1)
         sz = (lambda m: float(m.group(1)) if m else 38)(re.search(r'\bsize:\s*([\d.]+)', t))
@@ -405,6 +428,100 @@ for sid, fr, to, en, b in scenes:
         if right > 1900:
             E(f'{sid}: the caption "{l1}" on {src.group(1)} runs off the right edge (to x {right:.0f}): '
               f'move the print left or shorten the line')
+
+# a name hangs under the photo it names (producer, cannabis 6:00 2026-10-25: "the name tag on the right side feels
+# messy and where does it belongs?"; 105 of 135 NameStrips in shots with prints sat > 80 px off the photo; then
+# "the white tag should be under the image not on the face"): in a shot with a print every name is that print's
+# names=[{text, sub, at, fx}], one row hung off its bottom edge, people left to right by fx
+for sid, fr, to, en, b in scenes:
+    pp = list(re.finditer(r'<PhotoPrint\b((?:[^>"{]|"[^"]*"|\{\[.*?\]\}|\{\{.*?\}\}|\{[^{}]*\})*?)/?>', b, re.S))
+    if not pp:
+        continue
+    for nm in re.finditer(r'<NameStrip\b[^>]*?text="([^"]*)"', b):
+        E(f'{sid}: NameStrip "{nm.group(1)}" floats free in a shot with a print: hang it under its photo, '
+          f'<PhotoPrint ... names={{[{{text: "{nm.group(1)}", at: .., fx: ..}}]}} /> (fx = where that person stands, '
+          f'0-1, orders the row; python tools/fixnames.py moves them all)')
+    for pm in pp:
+        pa = pm.group(1)
+        nb = re.search(r'\bnames=\{\[(.*?)\]\}', pa, re.S)
+        src = re.search(r'\bsrc="([^"]+)"', pa)
+        if not nb or not src:
+            continue
+        g = lambda k, d=None: (lambda m: float(m.group(1)) if m else d)(re.search(rf'\b{k}=\{{\s*(-?[\d.]+)\s*\}}', pa))
+        x, y, bd, asp = g('x'), g('y'), g('border', 14), g('aspect')
+        if asp is None and 'film=' not in pa and Image is not None:
+            try:
+                iw, ih = Image.open(ROOT / 'public/photos' / src.group(1)).size
+                asp = iw / ih
+            except Exception:
+                pass
+        w = _fitw(pa, asp)
+        if None in (x, y, w) or not asp:
+            continue
+        ws, hs, ts = [], [], []
+        for e in re.finditer(r'\{([^{}]*)\}', nb.group(1)):
+            t, sub = _q(e.group(1), 'text'), _q(e.group(1), 'sub')
+            sz = (lambda m: float(m.group(1)) if m else 34)(re.search(r'\bsize:\s*([\d.]+)', e.group(1)))
+            ws.append(max(len(t) * sz * 0.5, len(sub) * sz * 0.26) + 52)
+            hs.append(sz * 1.05 + 22 + (sz * 0.55 if sub else 0))
+            ts.append(t)
+        row = sum(ws) + 16 * (len(ws) - 1)
+        names = ' + '.join(f'"{t}"' for t in ts)
+        # the name goes under that person's own photo (Quirinale: Ciampi's name hung under the palace)
+        stems = {q: set(re.findall('[a-z]+', q.lower())) for q in
+                 (o.group(1) for o in (re.search('src="([^"]+)"', z.group(1)) for z in pp) if o)}
+        for t in ts:
+            tw = {v for v in re.findall('[a-z]+', t.lower()) if len(v) >= 4} - _TITLES
+            other = [k for k, v in stems.items() if k != src.group(1) and tw & v]
+            if other and not tw & stems.get(src.group(1), set()):
+                E(f"{sid}: the name \"{t}\" hangs under {src.group(1)}, but {other[0]} is that person's photo: "
+                  f"move it to that print's names=")
+        edge = y + ((w - 2 * bd) / asp + 2 * bd) / 2  # the row hangs 55 % below the print's bottom edge
+        bottom = edge + 0.55 * max(hs)
+        if bottom > 1060:
+            E(f'{sid}: the name {names} under {src.group(1)} runs off the bottom of the frame (to y {bottom:.0f}): '
+              f'raise the print (y) or make it smaller (w)')
+        tg = re.search(r'\btag=\{\{(.*?)\}\}', pa, re.S)
+        if tg:  # the row sits right-aligned, beside the black caption in the bottom-left corner
+            t = tg.group(1)
+            tsz = (lambda m: float(m.group(1)) if m else 38)(re.search(r'\bsize:\s*([\d.]+)', t))
+            cap = 28 + max(len(_q(t, 'line1')) * tsz * 0.5, len(_q(t, 'line2')) * tsz * 0.29) + 44
+            left, right = x + w / 2 - 18 - row, x + w / 2 - 18
+            if left < x - w / 2 + cap + 10:
+                E(f'{sid}: the name {names} under {src.group(1)} runs into the print\'s black caption: shorten one '
+                  f'(drop the name\'s sub, or a smaller size), or widen the print (w)')
+        else:
+            left, right = x - row / 2, x + row / 2
+        if row > w * 1.5:
+            E(f'{sid}: the names {names} under {src.group(1)} are much wider than the photo ({row:.0f} px vs {w:.0f}): '
+              f'shorten them (sub), set a smaller size or widen the print')
+        for lb in re.finditer(r'<(LabelTape|Highlight|BlackTag|DateTag)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', b, re.S):
+            la = lb.group(2)
+            lx, ly = (re.search(rf'\b{k}=\{{\s*(-?[\d.]+)\s*\}}', la) for k in ('x', 'y'))
+            if not lx or not ly:
+                continue
+            lx, ly = float(lx.group(1)), float(ly.group(1))
+            lt = next((m.group(1) for k in ('text', 'line1') for m in [re.search(rf'\b{k}="([^"]*)"', la)] if m), '') or _q(la, 'text') or _q(la, 'line1')
+            lsz = (lambda m: float(m.group(1)) if m else None)(re.search(r'\bsize=\{\s*([\d.]+)', la))
+            if lb.group(1) == 'LabelTape':
+                lsz = lsz or 40
+                lw, lh = len(lt) * (lsz * 0.6 + 4) + 52, lsz * 1.2 + 20
+            elif lb.group(1) == 'Highlight':
+                lsz = lsz or 64
+                lw, lh = len(lt) * lsz * 0.55 + 40, lsz * 1.3
+            else:  # black tags start at their x/y
+                lsz = lsz or (46 if lb.group(1) == 'DateTag' else 38)
+                lw, lh = len(lt) * lsz * 0.55 + 56, lsz * 1.25 + 28
+                lx, ly = lx + lw / 2, ly + lh / 2
+            anc = re.search(r'\banchor="(left|right)"', la)
+            if anc and lb.group(1) in ('LabelTape', 'Highlight'):
+                lx += lw / 2 if anc.group(1) == 'left' else -lw / 2
+            if abs(lx - (left + right) / 2) < (lw + right - left) / 2 and abs(ly - (edge + 0.05 * max(hs))) < (lh + max(hs)) / 2:
+                E(f'{sid}: the name {names} under {src.group(1)} runs into the {lb.group(1)} "{lt}": move that label '
+                  f'away from the photo\'s bottom edge (the names hang there)')
+        if left < 20 or right > 1900:
+            E(f'{sid}: the name {names} under {src.group(1)} runs off the {"left" if left < 20 else "right"} edge: '
+              f'move the print in or shorten the name')
 
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN

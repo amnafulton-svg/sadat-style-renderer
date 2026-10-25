@@ -41,7 +41,7 @@ Moving between these three planes means something. Film → board says "now look
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
-| 7 | Annotations | `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
+| 7 | Annotations | `PhotoPrint names=`, `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
 | 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember |
 | 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow drift over a board (scale 0.95-1.12, at most 3 % per second); prints never move on their own once they land |
 | 10 | Transition | `Enter` kinds + `BURNS` (`Main.tsx`) | Between scenes (sec. 5) |
@@ -53,8 +53,9 @@ Moving between these three planes means something. Film → board says "now look
 ## 3. Choosing the picture (decision order)
 
 1. **Was the moment filmed?** → `F`. Real archive film from the narration's era always comes first.
-2. **Is a person, place or object named?** → `PhotoPrint` (real photo) with a `NameStrip` **on the spoken name**
-   (every named person on screen gets one; `sub` = country or role).
+2. **Is a person, place or object named?** → `PhotoPrint` (real photo) with the person's name strip **on the spoken
+   name** (every named person on screen gets one; `sub` = country or role), hung under that person's photo:
+   `names={[{text: 'Col. Eli Lilly', sub: 'grandfather · founder', at: 359.62, fx: 0.79}]}`.
 3. **Geography (journey, border, spread, territory)?** → `DocMap`. Not for biography lines ("born in X").
 4. **A document is quoted or named (a law, treaty, letter, headline)?** → `DocCard` with the real scan, the quoted
    words marked as they are spoken. **HOUSE:** the mark's `lines` come from `tools/docmark.py <scan> "the words"`
@@ -135,6 +136,17 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   for at least 1 s (0.25 s per word when longer: a 6-word BlackTag needs 1.5 s) before its scene cuts. A tag that
   lands near a cut goes on the next scene, or the cut moves to a later sentence end; never put a tag on a scene
   too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing).
+- **HOUSE: a name hangs under the photo it names.** On a photo every name strip is the print's own `names=[{text,
+  sub, at, fx}]` (optional `rot`, default -2; `size`, default 34): the names hang in one row off the photo's bottom
+  edge, half on the white border, in the people's order left to right by fx (where that person stands, 0-1; fx
+  only orders the row). A print with a black caption (`tag=`) puts the row on the right, beside it. Never place a
+  free `NameStrip` beside a print, and never on a face (cannabis 6:00 2026-10-25: "the name tag on the right side
+  feels messy and where does it belongs?", then "the white tag should be under the image not on the face"). Keep
+  every LabelTape, Highlight, BlackTag and DateTag off the print's bottom edge: the names hang there. The name goes
+  under that person's own print, never under the building or crowd beside it. validate errors on a free
+  NameStrip in a shot with a print, names running off the frame, into the black caption, into a label, far wider
+  than the photo, or under the wrong print; `python tools/fixnames.py` moves the free ones (to the print named
+  after the person, else the nearest). Free NameStrips stay for film and maps only.
 - **HOUSE: a print's caption sits under the print.** The black who/what/where tag of a print is the print's own
   `tag={{line1: 'A prescription', line2: 'Fairhaven Pharmacy, 9 Sept. 1899'}}` (optional `at`, default just after
   the print lands; `size`, default 38). PhotoPrint sticks it across its bottom-left edge, so it always sits under
