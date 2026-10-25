@@ -140,7 +140,7 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   the print lands; `size`, default 38). PhotoPrint sticks it across its bottom-left edge, so it always sits under
   the photo and moves with it; never place a free `BlackTag` by hand next to a print (cannabis 2026-10-25: the
   tag landed across the frame from its print). In a shot with one print validate errors on a free BlackTag, and
-  on a caption that would run off the frame (raise the print or make it smaller). 
+  on a caption that would run off the frame (raise the print or make it smaller). `python tools/fixtags.py`
   moves every free tag onto its print in one go. Free BlackTags stay for
   FullPhoto, film and boards of several prints, placed under the picture they name.
 - **HOUSE: one good photo plays full screen.** When a shot's only picture is one photo that is wide (aspect
