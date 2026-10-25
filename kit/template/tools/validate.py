@@ -16,7 +16,9 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a DocCard mark that is not on printed lines of its scan (OCR, tools/docmark.py: beside the text, cutting
        through a line, or running far past it), a date/number tag (DateTag, BigSerif, Highlight, LabelTape, BlackTag)
        landing > 0.6 s after the narrator says it, text (tags, tapes, type, quotes) that is not on screen for
-       1 s (0.25 s per word if longer) after it has typed/faded on before its scene cuts, hook included.
+       1 s (0.25 s per word if longer) after it has typed/faded on before its scene cuts, hook included,
+       a shot whose only picture is one PhotoPrint of a wide photo that holds up full screen (aspect >= 1.3,
+       enlarged <= 1.6x to cover 1920x1080) and is not a FullPhoto, a FullPhoto of a photo too small or tall for it.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -110,7 +112,7 @@ for sid, fr, to, en, b in scenes:
         if src in seen and fr >= a.hook:
             E(f'{sid}: clip {src} already used in {seen[src][0]} (no repeats after the hook)')
         seen.setdefault(src, (sid, fr, key))
-    for pm in re.finditer(r'(PhotoPrint|DocCard)\s+(?:src|photo)="([^"]+)"', b):
+    for pm in re.finditer(r'(PhotoPrint|DocCard|FullPhoto)\s+(?:src|photo)="([^"]+)"', b):
         kind, src = pm.groups()
         folder = 'docs' if kind == 'DocCard' else 'photos'
         if 'film={' in b[pm.start():pm.start() + 400] and kind == 'PhotoPrint':
@@ -121,20 +123,20 @@ for sid, fr, to, en, b in scenes:
             E(f'{sid}: {src} already shown in {seen[src][0]} (no repeats after the hook)')
         seen.setdefault(src, (sid, fr, src))
     # one picture under three or more sentences reads as a stuck shot (producer, Britain test 2026-10-23)
-    pics = len(re.findall(r'<(?:F|PhotoPrint|DocCard)\b', b))
+    pics = len(re.findall(r'<(?:F|PhotoPrint|DocCard|FullPhoto)\b', b))
     ends = [w for w in W if fr + 0.3 < w['e'] < to - 0.3 and re.search(r'[.!?]["\')\]]*$', w['w'])]
     if pics == 1 and to - fr > 8 and len(ends) >= 2 and fr >= a.hook and not re.search(r'<(DocMap|Chart)\b', b):
         held.append((sid, to - fr, f'{sid}: one picture for {to - fr:.1f} s over {len(ends) + 1} sentences; cut to a new '
                      f'shot on a sentence end (' + ', '.join(f"{w['e']:.2f}" for w in ends) + ')'))
     # an empty backdrop at the cut: every print/doc slides in later and nothing else is on screen
     ats = [float(x) for x in re.findall(r'<(?:PhotoPrint|DocCard)\b[^>]*?\bat=\{([\d.]+)\}', b)]
-    if ats and not re.search(r'<(?:F|Film|DocMap|Chart)\b', b) and min(ats) - fr > 1.0:
+    if ats and not re.search(r'<(?:F|Film|FullPhoto|DocMap|Chart)\b', b) and min(ats) - fr > 1.0:
         E(f'{sid}: nothing on screen for {min(ats) - fr:.1f} s after the cut at {fr} (first print at {min(ats)}); '
           f'start the scene on a picture')
 # an empty chart: the axis is up but its first bar/column/point lands > 3 s later (tax withholding s3/s4, 2026-10-24)
 for sid, fr, to, en, b in scenes:
     cm = re.search(r'<Chart chart=\{\{(.*)\}\}', b, re.S)
-    if not cm or re.search(r'<(?:F|Film|PhotoPrint|DocCard|DocMap)\b', b):
+    if not cm or re.search(r'<(?:F|Film|PhotoPrint|FullPhoto|DocCard|DocMap)\b', b):
         continue
     ap_ = re.search(r'appear:\s*([\d.]+)', cm.group(1))
     start = max(fr, float(ap_.group(1)) if ap_ else fr)
@@ -144,7 +146,7 @@ for sid, fr, to, en, b in scenes:
         (E if gap > 4.5 else Wn)(f'{sid}: empty chart for {gap:.1f} s (axis up at {start}, first value at {min(ats)}); '
                                  f'land the first value within 3 s or start the chart later')
 # no slideshow: type alone on Black/ConcreteWall/Paper (no film, print, document, map or chart under it)
-PIC = re.compile(r'<(F|Film|PhotoPrint|DocCard|DocMap|Chart)\b')
+PIC = re.compile(r'<(F|Film|PhotoPrint|FullPhoto|DocCard|DocMap|Chart)\b')
 bare = [(sid, fr, to) for sid, fr, to, en, b in scenes if not PIC.search(b)]
 for (s1, f1, t1), (s2, f2, t2) in zip(bare, bare[1:]):
     if abs(t1 - f2) < 0.001:
@@ -316,6 +318,40 @@ for sid, fr, to, en, b in scenes:
             E(f'{sid}: {kind} "{txt[:50]}" is fully on at {on:.2f} but the scene cuts at {min(end, to):.2f} '
               f'({max(left, 0):.2f} s to read, needs {need:.1f} s): hold the scene to {on + need:.2f} on the next sentence '
               f'end/pause, cue it earlier, or move/drop the tag (hook included)')
+
+# one photo alone on the wall, shot after shot, feels templated (producer, Italy 2026-10-25): when a shot's only
+# picture is a photo that holds up full screen, it plays full screen with a slow zoom in (FullPhoto); a photo too
+# small or too tall for that stays a print
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
+    Wn('full-screen photo check skipped: run with the python that has PIL')
+
+
+def fill_fit(src):
+    """(aspect, enlargement to cover 1920x1080) of public/photos/src, or None"""
+    try:
+        w, h = Image.open(ROOT / 'public/photos' / src).size
+    except Exception:
+        return None
+    return w / h, max(1920 / w, 1080 / h)
+
+
+for sid, fr, to, en, b in scenes if Image else []:
+    pics = re.findall(r'<(?:F|Film|PhotoPrint|FullPhoto|DocCard|DocMap|Chart)\b', b)
+    for fm in re.finditer(r'<FullPhoto\s+src="([^"]+)"', b):
+        f = fill_fit(fm.group(1))
+        if f and (f[0] < 1.25 or f[1] > 2.0):
+            E(f'{sid}: FullPhoto {fm.group(1)} is too {"tall" if f[0] < 1.25 else "small"} for full screen '
+              f'(aspect {f[0]:.2f}, enlarged {f[1]:.1f}x); find a bigger copy or use a PhotoPrint')
+    pp = re.findall(r'<PhotoPrint\s+src="([^"]+)"((?:[^>"]|"[^"]*")*?)(/?)>', b)
+    if len(pics) != 1 or len(pp) != 1 or 'film=' in pp[0][1] or not pp[0][2] or to - fr < 2:
+        continue  # several pictures, moving film in a print, or annotations drawn on the print
+    f = fill_fit(pp[0][0])
+    if f and f[0] >= 1.3 and f[1] <= 1.6:
+        E(f'{sid}: the only picture is a print of {pp[0][0]}, which holds up full screen (aspect {f[0]:.2f}, '
+          f'enlarged {f[1]:.1f}x): use <FullPhoto src="{pp[0][0]}" /> (slow zoom in) instead of PhotoPrint on a wall')
 
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN

@@ -40,6 +40,7 @@ Moving between these three planes means something. Film → board says "now look
 | 4 | Document | `DocCard` (`layers/Evidence.tsx`) | **HOUSE:** a real scan (law, treaty, letter, newspaper) with the quoted line marked on its word |
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
+| 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
 | 7 | Annotations | `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
 | 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember |
 | 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow drift over a board (scale 0.95-1.12, at most 3 % per second); prints never move on their own once they land |
@@ -134,6 +135,12 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   for at least 1 s (0.25 s per word when longer: a 6-word BlackTag needs 1.5 s) before its scene cuts. A tag that
   lands near a cut goes on the next scene, or the cut moves to a later sentence end; never put a tag on a scene
   too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing).
+- **HOUSE: one good photo plays full screen.** When a shot's only picture is one photo that is wide (aspect
+  >= 1.3) and big enough (enlarged at most 1.6x to fill 1920x1080), it is a `FullPhoto` (fills the frame, slow
+  zoom in towards `focusX`/`focusY`), not a `PhotoPrint` on a wall: one print on a wall shot after shot feels
+  templated. Tags and type go on top as usual. Prints stay for several photos on a board, tall or small photos,
+  and prints with marks drawn on them. If a fitting photo is small, look for a bigger copy first (Commons
+  originals). validate errors both ways.
 
 ## 7. Sound
 

@@ -122,7 +122,7 @@ def shown(root, scenes):
             rate = re.search(r'rate=\{([\d.]+)\}', fm.group(2))
             st, rate = float(st.group(1)) if st else 0.0, float(rate.group(1)) if rate else 1.0
             out.append((sid, fr, to, 'film', root / 'public/footage' / fm.group(1), st, st + (to - fr) * rate))
-        for pm in re.finditer(r'<PhotoPrint\s+src="([^"]+)"([^>]*)>', b):
+        for pm in re.finditer(r'<(?:PhotoPrint|FullPhoto)\s+src="([^"]+)"([^>]*)>', b):
             src, rest = pm.groups()
             fl = re.search(r'film=\{\{\s*start:\s*([\d.]+)(?:,\s*rate:\s*([\d.]+))?', rest)
             at = re.search(r'\bat=\{([\d.]+)\}', rest)

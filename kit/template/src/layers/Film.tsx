@@ -3,7 +3,7 @@
 // with a heavy vignette and a soft blur on the frame edges, so 1940s film and 1990s video sit in one look
 // and the eye stays in the centre. `fit: "pad"` is the house alternative (whole 4:3 picture over a blurred copy).
 import React from 'react';
-import {AbsoluteFill, OffthreadVideo, interpolate, staticFile} from 'remotion';
+import {AbsoluteFill, Img, OffthreadVideo, interpolate, staticFile} from 'remotion';
 import {useScene} from '../lib/scene';
 
 export type Grade = 'bw' | 'sepia' | 'warm' | 'blue' | 'none';
@@ -60,6 +60,38 @@ export const Film: React.FC<FilmProps> = ({src, start, fit = 'fill', focusY = 50
           transformOrigin: `${focusX}% ${focusY}%`,
         })
       )}
+      <EdgeSoftness />
+    </AbsoluteFill>
+  );
+};
+
+/** one real photo filling the frame with a slow zoom in: for a shot whose only picture is a photo big and wide enough
+ *  to hold up full screen (producer, Italy 2026-10-25: one print on the wall shot after shot "feels templated").
+ *  The zoom runs the whole shot, 2.5 % per second, at most 10 %, towards focusX/focusY. */
+export const FullPhoto: React.FC<{src: string; grade?: Grade; focusX?: number; focusY?: number; zoom?: number}> = ({
+  src,
+  grade = 'sepia',
+  focusX = 50,
+  focusY = 50,
+  zoom,
+}) => {
+  const {frame, durFrames} = useScene();
+  const end = zoom ?? 1 + Math.min(0.1, (0.025 * durFrames) / 25);
+  const z = interpolate(frame, [0, durFrames], [1, end], {extrapolateRight: 'clamp'});
+  return (
+    <AbsoluteFill style={{background: '#000', overflow: 'hidden'}}>
+      <Img
+        src={staticFile(`photos/${src}`)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: `${focusX}% ${focusY}%`,
+          filter: GRADE[grade],
+          transform: `scale(${z})`,
+          transformOrigin: `${focusX}% ${focusY}%`,
+        }}
+      />
       <EdgeSoftness />
     </AbsoluteFill>
   );
