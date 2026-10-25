@@ -29,7 +29,8 @@ export const PhotoPrint: React.FC<{
   drift?: number; // px of slow drift over the scene
   film?: {start: number; rate?: number}; // src is then a clip in public/footage: moving film inside the print (needs aspect)
   children?: React.ReactNode; // annotations in print-local px
-}> = ({src, at, x, y, w, rot = 0, from = 'bottom', grade = 'sepia', border = 14, objectPosition = 'center', aspect, drift = 18, film, children}) => {
+  tag?: {line1: string; line2?: string; at?: number; size?: number}; // the print's black caption, stuck on its bottom-left edge
+}> = ({src, at, x, y, w, rot = 0, from = 'bottom', grade = 'sepia', border = 14, objectPosition = 'center', aspect, drift = 18, film, children, tag}) => {
   const cue = useCue();
   const {frame, durFrames} = useScene();
   const start = cue(at) - 8; // lands on the word: the 8-frame flight ends as the word starts
@@ -73,6 +74,34 @@ export const PhotoPrint: React.FC<{
         )}
         {children}
       </div>
+      {tag && <PrintTag {...tag} at={tag.at ?? at + 0.2} />}
+    </div>
+  );
+};
+
+/** the caption of one print, stuck across its bottom-left edge (60 % on the print, 40 % below), so it always sits
+ *  under the photo it names and moves with it (producer, cannabis 2026-10-25: "why the text in the black box is
+ *  not under the image?": free BlackTags were placed by hand and landed across the frame from their print) */
+const PrintTag: React.FC<{at: number; line1: string; line2?: string; size?: number}> = ({at, line1, line2, size = 38}) => {
+  const cue = useCue();
+  const {frame} = useScene();
+  const p = prog(frame, cue(at) - 3, 8);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 28,
+        bottom: 0,
+        transform: `translate(${(1 - p) * -30}px, 40%)`,
+        opacity: p,
+        background: C.tag,
+        padding: '12px 22px 12px',
+        boxShadow: '0 8px 20px rgba(0,0,0,.5)',
+        zIndex: 2,
+      }}
+    >
+      <div style={{fontFamily: FONT.serif, color: '#f4f0e6', fontSize: size, lineHeight: 1.1, whiteSpace: 'nowrap'}}>{line1}</div>
+      {line2 && <div style={{fontFamily: FONT.serif, fontStyle: 'italic', color: '#bdb6a6', fontSize: size * 0.58, marginTop: 4, whiteSpace: 'nowrap'}}>{line2}</div>}
     </div>
   );
 };

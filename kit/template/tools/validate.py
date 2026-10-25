@@ -18,7 +18,8 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        landing > 0.6 s after the narrator says it, text (tags, tapes, type, quotes) that is not on screen for
        1 s (0.25 s per word if longer) after it has typed/faded on before its scene cuts, hook included,
        a shot whose only picture is one PhotoPrint of a wide photo that holds up full screen (aspect >= 1.3,
-       enlarged <= 1.6x to cover 1920x1080) and is not a FullPhoto, a FullPhoto of a photo too small or tall for it.
+       enlarged <= 1.6x to cover 1920x1080) and is not a FullPhoto, a FullPhoto of a photo too small or tall for it,
+       a free BlackTag in a shot with one print (it is the print's tag=), a print caption running off the frame.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -305,6 +306,13 @@ for sid, fr, to, en, b in scenes:
             continue
         out = attr(attrs, 'out')
         items.append((kind, txt, float(at), float(out) if out else to))
+    for pm in re.finditer(r'<PhotoPrint\b((?:[^>"]|"[^"]*")*?)\btag=\{\{(.*?)\}\}', b, re.S):
+        tg = pm.group(2)
+        txt = ' '.join(m.group(1) or m.group(2) for m in re.finditer(r"""line[12]:\s*(?:'([^']*)'|"([^"]*)")""", tg))
+        ta = re.search(r'\bat:\s*([\d.]+)', tg)
+        pa = attr(pm.group(1), 'at')
+        if txt and (ta or pa):
+            items.append(('BlackTag', txt, float(ta.group(1)) if ta else float(pa) + 0.2, to))
     # QuoteText / ListWords: the line is on once its last word has popped in
     for qm in re.finditer(r'<(QuoteText|ListWords)\b[^>]*?(?:words|items)=\{\[(.*?)\]\}', b, re.S):
         ws = re.findall(r"""\{\s*w:\s*(?:'([^']*)'|"([^"]*)")\s*,\s*at:\s*([\d.]+)""", qm.group(2))
@@ -352,6 +360,51 @@ for sid, fr, to, en, b in scenes if Image else []:
     if f and f[0] >= 1.3 and f[1] <= 1.6:
         E(f'{sid}: the only picture is a print of {pp[0][0]}, which holds up full screen (aspect {f[0]:.2f}, '
           f'enlarged {f[1]:.1f}x): use <FullPhoto src="{pp[0][0]}" /> (slow zoom in) instead of PhotoPrint on a wall')
+
+# a print's caption sits under the print it names (producer, cannabis 2026-10-25: "why the text in the black box is
+# not under the image?"; 14-78 hand-placed BlackTags per video sat across the frame from their print): in a shot with
+# one print the caption is that print's tag={{line1, line2}}, which PhotoPrint sticks on its bottom-left edge
+def _q(a, k):
+    m = re.search(rf"""\b{k}:\s*(?:'([^']*)'|"([^"]*)")""", a)
+    return (m.group(1) if m.group(1) is not None else m.group(2)) if m else ''
+
+
+for sid, fr, to, en, b in scenes:
+    pp = list(re.finditer(r'<PhotoPrint\b((?:[^>"{]|"[^"]*"|\{\{.*?\}\}|\{[^{}]*\})*?)/?>', b, re.S))
+    if len(pp) == 1:
+        for tm in re.finditer(r'<BlackTag\b[^>]*?line1="([^"]*)"', b):
+            E(f'{sid}: BlackTag "{tm.group(1)}" floats free beside the shot\'s only print: make it the print\'s caption, '
+              f'<PhotoPrint ... tag={{{{line1: \'{tm.group(1)}\', line2: \'...\'}}}} /> (sits under the photo, moves with it; python tools/fixtags.py moves them all)')
+    for pm in pp:
+        pa = pm.group(1)
+        tg = re.search(r'\btag=\{\{(.*?)\}\}', pa, re.S)
+        if not tg or Image is None:
+            continue
+        g = lambda k, d=None: (lambda m: float(m.group(1)) if m else d)(re.search(rf'\b{k}=\{{\s*(-?[\d.]+)\s*\}}', pa))
+        src = re.search(r'\bsrc="([^"]+)"', pa)
+        x, y, w, asp, bd = g('x'), g('y'), g('w'), g('aspect'), g('border', 14)
+        if None in (x, y, w) or not src:
+            continue
+        if asp is None and 'film=' not in pa:
+            try:
+                iw, ih = Image.open(ROOT / 'public/photos' / src.group(1)).size
+                asp = iw / ih
+            except Exception:
+                continue
+        if not asp:
+            continue
+        t = tg.group(1)
+        sz = (lambda m: float(m.group(1)) if m else 38)(re.search(r'\bsize:\s*([\d.]+)', t))
+        l1, l2 = _q(t, 'line1'), _q(t, 'line2')
+        th = sz * 1.1 + (sz * 0.58 * 1.1 + 4 if l2 else 0) + 24
+        bottom = y + (w / asp + 2 * bd) / 2 + 0.4 * th
+        right = x - w / 2 + 28 + max(len(l1) * sz * 0.5, len(l2) * sz * 0.29) + 44
+        if bottom > 1060:
+            E(f'{sid}: the caption "{l1}" under {src.group(1)} runs off the bottom of the frame (to y {bottom:.0f}): '
+              f'raise the print (y) or make it smaller (w)')
+        if right > 1900:
+            E(f'{sid}: the caption "{l1}" on {src.group(1)} runs off the right edge (to x {right:.0f}): '
+              f'move the print left or shorten the line')
 
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN

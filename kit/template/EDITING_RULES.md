@@ -135,6 +135,14 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   for at least 1 s (0.25 s per word when longer: a 6-word BlackTag needs 1.5 s) before its scene cuts. A tag that
   lands near a cut goes on the next scene, or the cut moves to a later sentence end; never put a tag on a scene
   too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing).
+- **HOUSE: a print's caption sits under the print.** The black who/what/where tag of a print is the print's own
+  `tag={{line1: 'A prescription', line2: 'Fairhaven Pharmacy, 9 Sept. 1899'}}` (optional `at`, default just after
+  the print lands; `size`, default 38). PhotoPrint sticks it across its bottom-left edge, so it always sits under
+  the photo and moves with it; never place a free `BlackTag` by hand next to a print (cannabis 2026-10-25: the
+  tag landed across the frame from its print). In a shot with one print validate errors on a free BlackTag, and
+  on a caption that would run off the frame (raise the print or make it smaller). 
+  moves every free tag onto its print in one go. Free BlackTags stay for
+  FullPhoto, film and boards of several prints, placed under the picture they name.
 - **HOUSE: one good photo plays full screen.** When a shot's only picture is one photo that is wide (aspect
   >= 1.3) and big enough (enlarged at most 1.6x to fill 1920x1080), it is a `FullPhoto` (fills the frame, slow
   zoom in towards `focusX`/`focusY`), not a `PhotoPrint` on a wall: one print on a wall shot after shot feels
