@@ -53,15 +53,36 @@ def probe(project, composition):
     return {'composition': composition, 'fps': fps, 'frames': frames}
 
 
+# GitHub refuses release files of 2 GiB or more (America Had No Credit Cards: 267 clips, 2.47 GB). A bigger video
+# goes up as <name>.zip (video.json, src/ and the first media) + <name>.zip.part2, .part3 ... each a whole zip of
+# more public/ files; unpack.sh unzips them all. The discover job only lists *.zip, so a video is still one zip there.
+PART_LIMIT = 1_900_000_000
+
+
 def make_zip(project, meta, dest):
-    with zipfile.ZipFile(dest, 'w') as z:
-        z.writestr('video.json', json.dumps(meta, indent=2))
-        for top in ('src', 'public'):
-            for p in sorted((project / top).rglob('*')):
-                if p.is_file():
-                    kind = zipfile.ZIP_STORED if p.suffix.lower() in STORED else zipfile.ZIP_DEFLATED
-                    z.write(p, p.relative_to(project).as_posix(), compress_type=kind)
-    print(f'  {dest.name}: {dest.stat().st_size / 1e6:.0f} MB')
+    """Zips the project into dest (and dest.partN when it is too big for one release file); returns the files."""
+    files = [p for top in ('src', 'public') for p in sorted((project / top).rglob('*')) if p.is_file()]
+    for old in dest.parent.glob(dest.name + '.part*'):
+        old.unlink()
+    parts, z, size = [], None, 0
+    for p in files:
+        n = p.stat().st_size
+        if z is None or (size + n > PART_LIMIT and size):
+            if z:
+                z.close()
+            parts.append(dest if not parts else dest.with_name(f'{dest.name}.part{len(parts) + 1}'))
+            z, size = zipfile.ZipFile(parts[-1], 'w'), 0
+            if len(parts) == 1:
+                z.writestr('video.json', json.dumps(meta, indent=2))
+        if n >= PART_LIMIT:
+            sys.exit(f'{p}: {n / 1e6:.0f} MB is too big for one GitHub release file')
+        kind = zipfile.ZIP_STORED if p.suffix.lower() in STORED else zipfile.ZIP_DEFLATED
+        z.write(p, p.relative_to(project).as_posix(), compress_type=kind)
+        size += n
+    z.close()
+    for f in parts:
+        print(f'  {f.name}: {f.stat().st_size / 1e6:.0f} MB')
+    return parts
 
 
 def main():
@@ -85,18 +106,17 @@ def main():
         print(f'{project.name}: {meta}')
         name = re.sub(r'[^A-Za-z0-9._-]+', '_', project.name)
         dest = zips / f'{name}.zip'
-        make_zip(project, meta, dest)
-        files.append(dest)
+        files += make_zip(project, meta, dest)
 
-    workers = max(1, 20 // len(files))
+    workers = max(1, 20 // sum(f.suffix == '.zip' for f in files))
     # One release + dispatch at a time on this machine (Classic Studio sends several videos at once): the lock keeps
     # the tag unique and lets the run lookup below find this dispatch, not another video's (2026-10-17 tag clash).
     lock = open(zips / '.ship.lock', 'w')
     fcntl.flock(lock, fcntl.LOCK_EX)
     tag = 'r' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + \
-        hashlib.md5(' '.join(f.stem for f in files).encode()).hexdigest()[:6]
+        hashlib.md5(' '.join(f.stem for f in files if f.suffix == '.zip').encode()).hexdigest()[:6]
     run([GH, 'release', 'create', tag, *map(str, files), '--repo', a.repo, '--title', tag,
-         '--notes', ', '.join(f.stem for f in files)])
+         '--notes', ', '.join(f.stem for f in files if f.suffix == '.zip')])
     for f in files:
         f.unlink()
     run([GH, 'workflow', 'run', 'render.yml', '--repo', a.repo, '--ref', 'main',
