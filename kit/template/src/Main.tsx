@@ -21,7 +21,11 @@ export const Main: React.FC = () => {
         return (
           <Sequence key={s.id} name={s.id} from={start} durationInFrames={dur}>
             <SceneProvider startFrame={start} durFrames={dur}>
-              <Enter kind={s.enter}>{s.el}</Enter>
+              {/* one stacking context per scene: its labels (zIndex) stay above its own prints but never above the
+                  next scene while a dissolve/torn/whip overlaps them (cannabis 2:12: "Spasms eased." hung over the paper) */}
+              <AbsoluteFill style={{isolation: 'isolate'}}>
+                <Enter kind={s.enter}>{s.el}</Enter>
+              </AbsoluteFill>
             </SceneProvider>
           </Sequence>
         );
