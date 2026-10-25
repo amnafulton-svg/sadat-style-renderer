@@ -25,8 +25,27 @@ ap.add_argument('voice')
 ap.add_argument('--dest', default=str(Path.home() / 'sadat-chat'))
 ap.add_argument('--no-install', action='store_true')
 ap.add_argument('--no-words', action='store_true')
+ap.add_argument('--editing', choices=('solo', 'sections'), default='solo',
+                help='solo: this chat edits the whole video, helpers only fetch media (Chipyong-ni, ~$45); '
+                     'sections: the chat may hand sections to subagent editors (cannabis video, ~$95)')
+ap.add_argument('--media', type=int, default=3, choices=range(0, 7), metavar='0-6',
+                help='most subagents fetching media at once (0 = the chat finds its media itself)')
 ap.add_argument('--launch', action='store_true', help='start the chat in tmux (Opus 5.5, auto permissions)')
 a = ap.parse_args()
+
+if a.media == 0:
+    MEDIA = 'Do not use subagents to fetch media: find, download and check it yourself.'
+else:
+    MEDIA = (f'At most {a.media} subagent{"s" if a.media != 1 else ""} fetching media at once (Wikimedia blocked the '
+             'machine when 8 ran together).')
+if a.editing == 'solo':
+    SPLIT = ('**You edit the whole video yourself, in this chat.** Write every section, look at the stills and make '
+             'every fix here. Never hand editing, sections, stills checks or fixes to subagents: each one has to load '
+             'the whole project again, and that doubled the cost of the cannabis video. Subagents may only find, '
+             'download and sheet media for you. ' + MEDIA)
+else:
+    SPLIT = ('You may hand sections to subagent editors (one per section), then check and join their work yourself. '
+             + MEDIA)
 
 name = re.sub(r'[^A-Za-z0-9_-]+', '-', a.name).strip('-').lower()
 proj = Path(a.dest).resolve() / name
@@ -79,7 +98,7 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 3. **The right person.** A name tag or person card goes only on a picture of that person (or their arms/house,
    tagged as such). A group portrait of three women is not "Edward Somerset"; a manor is not "Joan Thirsk".
 4. **Never an empty screen.** A scene opens on its picture: the first print/doc lands within 1 s of the cut.
-5. **At most 3 subagents fetching media at once.** Wikimedia blocked the machine when 8 ran together.
+5. Keep the split below (How the work is split).
 6. Keep what worked: a strong moving opening, real documents with the spoken line highlighted, steady motion.
 7. **A date or number lands on its word.** A DateTag/figure appears when the narrator says it, and the scene that
    carries it starts at the sentence that says it (not a beat later).
@@ -87,6 +106,9 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
    spoken words"` (OCR), never a box guessed by eye; circles only ring an area (a town, a signature).
 9. **Labels are always on top and readable.** Name tags and labels are never covered by a print that lands later;
    light type over film or photos keeps its dark backing; keep type off bright sky.
+
+## How the work is split (the producer's choice)
+{SPLIT}
 
 ## Done =
 - `{PY} tools/validate.py` shows **0 ERRORs** (fix every one; WARNs fixed or explained in NOTES.md),
