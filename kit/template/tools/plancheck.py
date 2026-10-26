@@ -13,7 +13,12 @@ geography, document, numbers, list or argument. ERROR when:
   - plan.md is missing, or a spoken sentence falls in no row,
   - a film row shows film for under half of its time, unless its Source ideas say `no film: q1; q2; q3` and those
     3+ queries are in _work/searches.tsv (tools/source.py logs every search), at least one of them on archive.org,
-  - archive.org was searched fewer times than once per 20 s of narration.
+  - archive.org was searched fewer times than once per 20 s of narration,
+  - the fresh Final check (CLAUDE.md, Done) has not passed on the cut as it is: _parts/FINAL.md missing, its last
+    STATUS line not READY, or a file in src/timeline/ changed after it (zniti2-2, 2026-10-26: a fitness class went out
+    under "a political analyst sits under the lights" because nobody boarded the cut against the words).
+A film row may also say `better photo: q1; q2; q3` (a strong real photo of the exact thing beats loose stand-in
+film), held to the same 3 logged searches.
 """
 import re
 from pathlib import Path
@@ -104,15 +109,15 @@ def check(root, scenes, W):
         shown = sum(max(0.0, min(b, to) - max(a, fr)) for fr, to in film)
         if shown >= 0.5 * (b - a):
             continue
-        m = re.search(r'no film:\s*(.*)', ideas, re.I)
+        m = re.search(r'(?:no film|better photo):\s*(.*)', ideas, re.I)
         qs = [_norm(q) for q in re.split(r'[;,]', m.group(1)) if q.strip()] if m else []
         done = [q for q in qs if q in logged]
         if not m:
             errs.append(f'plan.md row {n} ({a:.2f}-{b:.2f}) is a film line but the cut shows film for '
-                        f'{shown:.1f} of {b - a:.1f} s: put film there, or write "no film: q1; q2; q3" with the searches '
-                        f'that found nothing')
+                        f'{shown:.1f} of {b - a:.1f} s: put film there, or write "no film: q1; q2; q3" (or "better photo: '
+                        f'q1; q2; q3") with the film searches you ran')
         elif len(done) < 3 or not any(q in archive for q in done):
-            errs.append(f'plan.md row {n} ({a:.2f}-{b:.2f}): "no film" needs 3+ searches run through tools/source.py '
+            errs.append(f'plan.md row {n} ({a:.2f}-{b:.2f}): "no film"/"better photo" needs 3+ searches run through tools/source.py '
                         f'(at least one ia-search on archive.org); found {len(done)} of them in _work/searches.tsv'
                         + ('' if any(q in archive for q in done) else ', none on archive.org'))
     narration = W[-1]['e'] if W else 0
@@ -120,4 +125,21 @@ def check(root, scenes, W):
     if len(archive) < need:
         errs.append(f'only {len(archive)} different archive.org searches for {narration / 60:.1f} min of narration '
                     f'(at least {need}: one per 20 s; search archive.org first for every film line)')
+    errs += final(root)
     return errs
+
+
+def final(root):
+    """ERROR unless the fresh Final check passed after the last change to the timeline"""
+    f = root / '_parts' / 'FINAL.md'
+    how = 'run the Final check (CLAUDE.md, Done: one fresh opus subagent boards the whole cut against the words)'
+    if not f.exists():
+        return [f'the Final check has not run: {how}']
+    st = [ln for ln in f.read_text(encoding='utf8', errors='ignore').splitlines() if ln.strip().startswith('STATUS:')]
+    if not st or not st[-1].strip().startswith('STATUS: READY'):
+        return [f'_parts/FINAL.md is not READY ({st[-1].strip()[:120] if st else "no STATUS line"}): fix what it lists, '
+                f'then {how} again']
+    newer = [p for p in (root / 'src' / 'timeline').rglob('*') if p.is_file() and p.stat().st_mtime > f.stat().st_mtime + 1]
+    if newer:
+        return [f'{newer[0].relative_to(root)} changed after the Final check: {how} again']
+    return []
