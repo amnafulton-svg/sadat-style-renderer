@@ -135,7 +135,9 @@ A transition used for decoration means nothing, so most changes are hard cuts.
 - **HOUSE: text stays long enough to read (hook included).** Every tag, tape, word or quote is fully on screen
   for at least 1 s (0.25 s per word when longer: a 6-word BlackTag needs 1.5 s) before its scene cuts. A tag that
   lands near a cut goes on the next scene, or the cut moves to a later sentence end; never put a tag on a scene
-  too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing).
+  too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing). `python
+  tools/fixread.py` cues short ones earlier (up to 1.2 s), lets an `out=` run later, or holds the scene to the next
+  pause; what it lists after that is yours (shorten the text, or drop it).
 - **HOUSE: a name hangs under the photo it names.** On a photo every name strip is the print's own `names=[{text,
   sub, at, fx}]` (optional `rot`, default -2; `size`, default 34): the names hang in one row off the photo's bottom
   edge, half on the white border, in the people's order left to right by fx (where that person stands, 0-1; fx
@@ -160,7 +162,16 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   zoom in towards `focusX`/`focusY`), not a `PhotoPrint` on a wall: one print on a wall shot after shot feels
   templated. Tags and type go on top as usual. Prints stay for several photos on a board, tall or small photos,
   and prints with marks drawn on them. If a fitting photo is small, look for a bigger copy first (Commons
-  originals). validate errors both ways.
+  originals). validate errors both ways; `python tools/fixfull.py` converts the flagged prints (caption and names
+  become a free BlackTag/NameStrips clear of the other labels): look at a still of each, a caption must not cover a
+  face.
+  Full screen shows a scan's own edges (black bars, paper margins, scanner strips) that a print hid:
+  `python tools/trimfull.py` (`--dry` lists first) crops straight flat borders into <name>_trim.jpg and repoints the
+  FullPhoto; it leaves skies and plain walls alone. A wide paper mat around an engraving it can miss: crop by hand.
+  A photo whose head is near the top edge gets `focusY={15}` so the crop keeps the head.
+- Light type that is not on paper gets a dark scrim behind it (Type.tsx). On a white or busy picture that is still
+  not enough: give BigSerif `bar` (dark box), or move the type to a plain part of the frame. Never type across a
+  picture's own title or a face.
 
 ## 7. Sound
 

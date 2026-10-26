@@ -43,7 +43,7 @@ export const Scrim: React.FC<{size: number; opacity: number}> = ({size, opacity}
       zIndex: -1,
       opacity,
       pointerEvents: 'none',
-      background: 'radial-gradient(closest-side, rgba(0,0,0,.68), rgba(0,0,0,.52) 55%, rgba(0,0,0,0))',
+      background: 'radial-gradient(closest-side, rgba(0,0,0,.82), rgba(0,0,0,.64) 55%, rgba(0,0,0,0))',
     }}
   />
 );

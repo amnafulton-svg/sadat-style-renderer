@@ -352,7 +352,7 @@ for sid, fr, to, en, b in scenes:
             left = min(end, to) - on
             E(f'{sid}: {kind} "{txt[:50]}" is fully on at {on:.2f} but the scene cuts at {min(end, to):.2f} '
               f'({max(left, 0):.2f} s to read, needs {need:.1f} s): hold the scene to {on + need:.2f} on the next sentence '
-              f'end/pause, cue it earlier, or move/drop the tag (hook included)')
+              f'end/pause, cue it earlier, or move/drop the tag (hook included; python tools/fixread.py does the first two)')
 
 # one photo alone on the wall, shot after shot, feels templated (producer, Italy 2026-10-25): when a shot's only
 # picture is a photo that holds up full screen, it plays full screen with a slow zoom in (FullPhoto); a photo too
@@ -381,12 +381,13 @@ for sid, fr, to, en, b in scenes if Image else []:
             E(f'{sid}: FullPhoto {fm.group(1)} is too {"tall" if f[0] < 1.25 else "small"} for full screen '
               f'(aspect {f[0]:.2f}, enlarged {f[1]:.1f}x); find a bigger copy or use a PhotoPrint')
     pp = re.findall(r'<PhotoPrint\s+src="([^"]+)"((?:[^>"]|"[^"]*")*?)(/?)>', b)
-    if len(pics) != 1 or len(pp) != 1 or 'film=' in pp[0][1] or not pp[0][2] or to - fr < 2:
-        continue  # several pictures, moving film in a print, or annotations drawn on the print
+    if len(pics) != 1 or len(pp) != 1 or 'film=' in pp[0][1] or not pp[0][2] or '<RedCircle' in b or to - fr < 2:
+        continue  # several pictures, moving film in a print, or annotations drawn on the print (a zoom slides it from under a ring)
     f = fill_fit(pp[0][0])
     if f and f[0] >= 1.3 and f[1] <= 1.6:
         E(f'{sid}: the only picture is a print of {pp[0][0]}, which holds up full screen (aspect {f[0]:.2f}, '
-          f'enlarged {f[1]:.1f}x): use <FullPhoto src="{pp[0][0]}" /> (slow zoom in) instead of PhotoPrint on a wall')
+          f'enlarged {f[1]:.1f}x): use <FullPhoto src="{pp[0][0]}" /> (slow zoom in) instead of PhotoPrint on a wall '
+          f'(python tools/fixfull.py converts them all, caption and names included)')
 
 # a print's caption sits under the print it names (producer, cannabis 2026-10-25: "why the text in the black box is
 # not under the image?"; 14-78 hand-placed BlackTags per video sat across the frame from their print): in a shot with
