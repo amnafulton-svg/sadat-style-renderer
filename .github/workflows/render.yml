@@ -158,7 +158,7 @@ jobs:
           check() { node -e 'const [l,a,e]=process.argv.slice(1); const d=Math.abs(+a-+e); if(!isFinite(+a)||d>1){console.error(`::error::${l} ${a}s vs ${e}s`);process.exit(1)} console.log(`${l} ok: ${a}s / ${e}s`)' "$1" "$2" "$expected"; }
           dur() { ffprobe -v error -show_entries format=duration -of csv=p=0 "$1"; }
           check "silent video" "$(dur "out/${stem}_silent.mp4")"
-          ffmpeg -hide_banner -y -v error -xerror -f concat -safe 0 -i wavs.txt -c:a aac -b:a 192k "out/${stem}_audio.m4a"
+          ffmpeg -hide_banner -y -v error -xerror -f concat -safe 0 -i wavs.txt -c:a aac -b:a 192k -f mp4 "out/${stem}_audio.m4a"
           check "sound" "$(dur "out/${stem}_audio.m4a")"
           ffmpeg -hide_banner -y -v error -xerror -i "out/${stem}_silent.mp4" -i "out/${stem}_audio.m4a" \
             -map 0:v:0 -map 1:a:0 -c copy -t "$expected" -movflags +faststart "out/${stem}.mp4"
