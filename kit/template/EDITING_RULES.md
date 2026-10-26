@@ -138,6 +138,11 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   too short for it (Italy 2026-10-25: a 1.24 s hook shot cut away while "11 days earlier" was still typing). `python
   tools/fixread.py` cues short ones earlier (up to 1.2 s), lets an `out=` run later, or holds the scene to the next
   pause; what it lists after that is yours (shorten the text, or drop it).
+- **HOUSE: a cut lands on the voice, not on the breath before it.** whisper glues the pause before a sentence onto
+  its first word, so a cut on that word can come up to a second before the narrator speaks (Hitler's generals 2:12
+  2026-10-26: "this scene came out early about 1s"). tools/words.py now starts those words where the voice starts
+  (tools/voice.py reads the audio); validate errors on a cut > 0.5 s before the voice, and `python tools/fixonset.py`
+  moves such cuts to 0.1 s before it (the scene before holds longer, this scene's cues in the pause move along).
 - **HOUSE: a name hangs under the photo it names.** On a photo every name strip is the print's own `names=[{text,
   sub, at, fx}]` (optional `rot`, default -2; `size`, default 34): the names hang in one row off the photo's bottom
   edge, half on the white border, in the people's order left to right by fx (where that person stands, 0-1; fx

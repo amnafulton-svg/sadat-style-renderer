@@ -22,6 +22,7 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a free BlackTag in a shot with one print (it is the print's tag=), a print caption running off the frame,
        a free NameStrip in a shot with a print (it is the print's names=, hung under the photo), print names
        running off the frame, into the print's black caption, or far wider than the photo.
+       a scene cut > 0.5 s before the narrator's voice starts (read from the audio, tools/voice.py; fix: tools/fixonset.py).
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -127,7 +128,9 @@ for sid, fr, to, en, b in scenes:
         seen.setdefault(src, (sid, fr, src))
     # one picture under three or more sentences reads as a stuck shot (producer, Britain test 2026-10-23)
     pics = len(re.findall(r'<(?:F|PhotoPrint|DocCard|FullPhoto)\b', b))
-    ends = [w for w in W if fr + 0.3 < w['e'] < to - 0.3 and re.search(r'[.!?]["\')\]]*$', w['w'])]
+    # a sentence end counts when the next sentence starts on this picture (not the breath before the next cut)
+    ends = [w for i, w in enumerate(W[:-1]) if fr + 0.3 < w['e'] and W[i + 1]['s'] < to - 0.3
+            and re.search(r'[.!?]["\')\]]*$', w['w'])]
     if pics == 1 and to - fr > 8 and len(ends) >= 2 and fr >= a.hook and not re.search(r'<(DocMap|Chart)\b', b):
         held.append((sid, to - fr, f'{sid}: one picture for {to - fr:.1f} s over {len(ends) + 1} sentences; cut to a new '
                      f'shot on a sentence end (' + ', '.join(f"{w['e']:.2f}" for w in ends) + ')'))
@@ -528,6 +531,17 @@ for sid, fr, to, en, b in scenes:
 # smeared film and blocky maps: WARN
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mapres  # noqa: E402
+# a cut > 0.5 s before the narrator speaks (whisper glues the breath to the first word: Hitler's generals 2:12)
+try:
+    import voice  # noqa: E402
+    _db = voice.levels(ROOT)
+    for sid, fr, to, en, b in scenes[1:]:
+        o = voice.onset(_db, fr)
+        if o is not None and o - fr > 0.5:
+            E(f'{sid}: cuts {o - fr:.2f} s before the voice (speech starts {o:.2f}, the cut is {fr}): '
+              f'run tools/fixonset.py')
+except Exception as ex:  # noqa: BLE001
+    Wn(f'voice-start check skipped ({ex}): needs numpy + ffmpeg')
 warns += mapres.check(ROOT, scenes, s)
 if not a.no_repeats:
     try:
