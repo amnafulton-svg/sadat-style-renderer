@@ -3,8 +3,10 @@
     python kit/new_chat.py <name> <script.md|.txt> <voice-over.mp3|.wav|.m4a> [--dest DIR] [--no-install] [--no-words] [--launch]
 
 Creates <dest>/<name>/ (default dest: ~/sadat-chat) from kit/template with only the plain tools (no look.py, read.py,
-batch.py, board.py, facts.py, turn_guard.py: those start helper sessions, which is what ate the weekly limit) and no
-skill. CLAUDE.md is the whole brief: the tools, the lessons from the england-plain test (2026-10-24) and when it is done.
+batch.py, board.py, turn_guard.py: those start helper sessions, which is what ate the weekly limit) and no
+skill. CLAUDE.md is the whole brief: the tools, the beat plan and film search (zniti test 2026-10-26: the section
+workflow's per-sentence plan and archive.org searches found far better film), the lessons from the england-plain test
+(2026-10-24) and when it is done. A `.onechat` file makes source.py and validate.py hold the chat to the plan.
 --launch opens the chat in tmux session <name> on Opus 5.5; without it the last line prints the command.
 """
 import argparse
@@ -16,7 +18,7 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parent
 REPO = KIT.parent
-HELPERS = ('look.py', 'read.py', 'batch.py', 'board.py', 'facts.py', 'turn_guard.py')
+HELPERS = ('look.py', 'read.py', 'batch.py', 'board.py', 'turn_guard.py')
 PY = Path.home() / 'yt/.venv/bin/python'  # system python3 has no PIL
 ap = argparse.ArgumentParser()
 ap.add_argument('name')
@@ -37,7 +39,11 @@ if a.media == 0:
     MEDIA = 'Do not use subagents to fetch media: find, download and check it yourself.'
 else:
     MEDIA = (f'At most {a.media} subagent{"s" if a.media != 1 else ""} fetching media at once (Wikimedia blocked the '
-             'machine when 8 ran together).')
+             'machine when 8 ran together). **The film search always goes to these helpers, also on a short video:** '
+             'once plan.md is written, give each helper a block of film rows (their times, lines and source ideas). '
+             'It runs the searches for every row (archive.org first, then Commons video), sheets the candidates and '
+             'returns per row: the film, the clean in-point and what the shot shows, or "no film:" with the queries '
+             'it ran. It does not cut clips or edit; you choose from what it brings back.')
 if a.editing == 'solo':
     SPLIT = ('**You edit the whole video yourself, in this chat.** Write every section, look at the stills and make '
              'every fix here. Never hand editing, sections, stills checks or fixes to subagents: each one has to load '
@@ -89,6 +95,29 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - `tools/docmark.py <doc> "phrase"`: OCR the scan and print the exact `lines:` rects for a mark on those words
   (`--rows a-b` for whole lines, no phrase to list every line).
 
+## 1. Plan before you search (plan.md)
+The section workflow found better film than one chat because it planned every sentence first (zniti test,
+2026-10-26). So before any search (source.py refuses to search until plan.md exists):
+- `{PY} tools/facts.py 0 99999` prints every sentence with its start-end time.
+- Write `plan.md`: one table row per sentence (or spoken list), in order:
+  `| # | Time | Line | Plane | Source ideas |` with Time in seconds (`12.40-18.90`) and the line's words.
+- Plane = what the screen is for that line: **film** (it was filmed: events, places, crowds, machines, war, any
+  moment after ~1900), **named** (a person: print + names), **geography** (DocMap), **document** (DocCard of the real
+  paper), **numbers** (chart, or a figure over film), **list** (one cut per item), **argument** (real film/photos with a
+  highlight). Never a text-only screen.
+- Source ideas = the exact thing seen on this line and 2-3 searches for it (the event, the place, the year, the
+  newsreel name), not the video's topic.
+- Mark the hook (first ~35 s) and the 3-6 big turns for burns.
+
+## 2. Find film for every film line
+- For each film row: at least 3 searches made for that line, **archive.org first** (`source.py ia-search`), then
+  `commons --video`, and only then photos. Look at the sheets and pick the shot that shows what is said.
+- If nothing usable exists, write `no film: query 1; query 2; query 3` (the searches you ran, at least one on
+  archive.org) in its Source ideas, and use the best real photos/documents there.
+- validate.py ERRORs: no plan.md, a sentence with no row, a film row that shows film for under half its time without
+  that "no film:" record, and fewer than one archive.org search per 20 s of narration. Searches are logged in
+  `_work/searches.tsv` by source.py.
+
 ## Lessons from the last chat-made video (england-plain, 2026-10-24): do not repeat these
 1. **The exact place.** A line about Raglan shows Raglan, not another castle; Denbigh, Caerphilly, Rhuddlan each
    get their own picture or none. Check every place picture against its file title on a sheet.
@@ -116,6 +145,7 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - you have looked at stills of the whole cut (one per scene) against the narration and fixed what was wrong.
 Do not render the full video unless the producer asks; then: `{PY} "{REPO / "ship.py"}" .`
 ''', encoding='utf8')
+(proj / '.onechat').write_text('one-chat project: plan.md + film search rules (tools/plancheck.py)\n', encoding='utf8')
 (proj / '.gitignore').write_text('node_modules/\n_cache/\n_stills/\n_sheets/\nout/\n', encoding='utf8')
 print('created', proj)
 

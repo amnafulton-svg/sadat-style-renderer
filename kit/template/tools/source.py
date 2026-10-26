@@ -13,6 +13,9 @@
           # -> _cache/serper/<key>_<n>.*, <key>.json (title/page/domain/size), <key>_sheet.jpg
     python tools/source.py sheet <video-file-or-url> out.jpg [--start S] [--every 1] [--count 40]
           # contact sheet with the time on every tile, to pick clean in-points
+
+Every ia-search / commons / serper is logged to _work/searches.tsv (time, kind, query, hits): validate.py counts them
+(archive.org first for every film line of plan.md, zniti test 2026-10-26).
 """
 import argparse
 import json
@@ -36,6 +39,17 @@ COOLDOWN = Path('/tmp/sadat-wikimedia.cooldown')  # epoch until which Wikimedia 
 
 class RateLimited(RuntimeError):
     pass
+
+
+def logged(kind, q, hits):
+    """one line per search in _work/searches.tsv, so validate.py can see what was searched for a line"""
+    try:
+        (ROOT / '_work').mkdir(exist_ok=True)
+        with open(ROOT / '_work' / 'searches.tsv', 'a', encoding='utf8') as fh:
+            fh.write('\t'.join((time.strftime('%Y-%m-%d %H:%M:%S'), kind, ' '.join(q.split()), str(hits))) + '\n')
+    except OSError:
+        pass
+    return hits
 
 
 def cooling():
@@ -119,11 +133,13 @@ def ia_search(q, rows):
     fields = ('identifier', 'title', 'year', 'licenseurl', 'rights')
     url = 'https://archive.org/advancedsearch.php?' + urllib.parse.urlencode(
         [('q', f'({q}) AND mediatype:movies'), ('rows', rows), ('output', 'json')] + [('fl[]', f) for f in fields])
-    for d in get(url)['response']['docs']:
+    docs = get(url)['response']['docs']
+    for d in docs:
         rights = str(d.get('rights', ''))
         lic = d.get('licenseurl') or rights or 'unclear'
         flag = '  ** ALL RIGHTS RESERVED: skip' if re.search(r'all rights reserved', rights, re.I) else ''
         print(f"{d['identifier']:<55} {str(d.get('year', '')):<6} {str(d.get('title', ''))[:70]}  [{str(lic)[:50]}]{flag}")
+    return len(docs)
 
 
 def ia_files(ident):
@@ -186,7 +202,8 @@ def commons(q, key, rows, video):
         commons_blocked(q, key, rows, video, blocked)
     elif not video and len(files) < 2:
         print(f"COMMONS FOUND {len(files)}: searching Google Images (Serper) too -> _cache/serper/{key}_*")
-        serper(q, key, rows)
+        logged('serper', q, serper(q, key, rows))
+    return len(files)
 
 
 def commons_blocked(q, key, rows, video, why):
@@ -195,7 +212,8 @@ def commons_blocked(q, key, rows, video, why):
         print(f'COMMONS BLOCKED: {why}. Film: use archive.org now, retry Commons video later.')
         return
     print(f'COMMONS BLOCKED: {why}. Searching Google Images (Serper) instead -> _cache/serper/{key}_*')
-    serper(q, key, rows)
+    logged('serper', q, serper(q, key, rows))
+    return 0
 
 
 STOCK_SITES = ('shutterstock', 'alamy', 'gettyimages', 'istockphoto', 'dreamstime', 'depositphotos', '123rf',
@@ -252,6 +270,7 @@ def serper(q, key, rows):
         print('sheet:', CACHE / 'serper' / f'{key}_sheet.jpg')
     else:
         print('no usable images')
+    return len(files)
 
 
 def font(n):
@@ -326,15 +345,17 @@ p = sp.add_parser('sheet'); p.add_argument('src'); p.add_argument('out')
 p.add_argument('--start', type=float, default=0); p.add_argument('--every', type=float, default=1)
 p.add_argument('--count', type=int, default=40)
 a = ap.parse_args()
+if a.cmd in ('ia-search', 'commons', 'serper') and (ROOT / '.onechat').exists() and not (ROOT / 'plan.md').exists():
+    sys.exit('write plan.md first (the beat table in CLAUDE.md: one row per sentence), then search for its lines')
 if a.cmd == 'ia-search':
-    ia_search(a.q, a.rows)
+    logged('archive', a.q, ia_search(a.q, a.rows))
 elif a.cmd == 'ia-files':
     ia_files(a.id)
 elif a.cmd == 'ia-get':
     ia_get(a.id, a.file, a.topic)
 elif a.cmd == 'commons':
-    commons(a.q, a.key, a.rows, a.video)
+    logged('commons-video' if a.video else 'commons', a.q, commons(a.q, a.key, a.rows, a.video) or 0)
 elif a.cmd == 'serper':
-    serper(a.q, a.key, a.rows)
+    logged('serper', a.q, serper(a.q, a.key, a.rows))
 else:
     sheet_video(a.src, a.out, a.start, a.every, a.count)

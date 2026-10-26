@@ -22,7 +22,10 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a free BlackTag in a shot with one print (it is the print's tag=), a print caption running off the frame,
        a free NameStrip in a shot with a print (it is the print's names=, hung under the photo), print names
        running off the frame, into the print's black caption, or far wider than the photo.
-       a scene cut > 0.5 s before the narrator's voice starts (read from the audio, tools/voice.py; fix: tools/fixonset.py).
+       a scene cut > 0.5 s before the narrator's voice starts (read from the audio, tools/voice.py; fix: tools/fixonset.py),
+       and in a one-chat project (.onechat, tools/plancheck.py): no plan.md or a sentence without a row, a film line
+       of plan.md showing film for under half its time without 3+ logged searches behind its "no film:", fewer than
+       one archive.org search per 20 s of narration.
 WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
@@ -543,6 +546,8 @@ try:
 except Exception as ex:  # noqa: BLE001
     Wn(f'voice-start check skipped ({ex}): needs numpy + ffmpeg')
 warns += mapres.check(ROOT, scenes, s)
+import plancheck  # noqa: E402
+errs += plancheck.check(ROOT, scenes, W)
 if not a.no_repeats:
     try:
         import repeats  # noqa: E402
