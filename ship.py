@@ -2,7 +2,7 @@
 
     python ship.py ..\\latam-doc [..\\other-doc ...] [--composition LatamDoc] [--repo owner/name]
 
-All videos in one call go into ONE release and ONE workflow run (20 chunk jobs split between them).
+Each video gets its own release and workflow run (all 20 chunk jobs), one after the other.
 Each project is a Remotion folder with src/index.ts and public/. Pre-flight: type check, composition
 probe (frames/fps). Then zip src/ + public/ + video.json, release, dispatch, print the run link.
 Nothing is downloaded: the MP4 is the run's "final-<name>" artifact.
@@ -85,6 +85,57 @@ def make_zip(project, meta, dest):
     return parts
 
 
+def prepare(project, a, zips):
+    """type check, probe and zip one project; returns its release files"""
+    if not (project / 'src' / 'index.ts').exists() or not (project / 'public').is_dir():
+        sys.exit(f'{project}: needs src/index.ts and public/')
+    if not a.no_tsc:
+        run([NPX, 'tsc', '--noEmit'], cwd=project)
+    meta = probe(project, a.composition)
+    print(f'{project.name}: {meta}')
+    name = re.sub(r'[^A-Za-z0-9._-]+', '_', project.name)
+    return make_zip(project, meta, zips / f'{name}.zip')
+
+
+def dispatch(files, a, zips):
+    """one release + one workflow run (all 20 chunk jobs) for one video; returns the run"""
+    # One release + dispatch at a time on this machine (Classic Studio sends several videos at once): the lock keeps
+    # the tag unique and lets the run lookup below find this dispatch, not another video's (2026-10-17 tag clash).
+    lock = open(zips / '.ship.lock', 'w')
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    stem = next(f.stem for f in files if f.suffix == '.zip')
+    tag = 'r' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + hashlib.md5(stem.encode()).hexdigest()[:6]
+    run([GH, 'release', 'create', tag, *map(str, files), '--repo', a.repo, '--title', tag, '--notes', stem])
+    for f in files:
+        f.unlink()
+    run([GH, 'workflow', 'run', 'render.yml', '--repo', a.repo, '--ref', 'main',
+         '-f', f'release_tag={tag}', '-f', 'workers_per_video=20'])
+    time.sleep(6)
+    out = run([GH, 'run', 'list', '--repo', a.repo, '--workflow', 'render.yml', '--limit', '1',
+               '--json', 'databaseId,url,status'], capture=True)
+    r = json.loads(out)[0]
+    time.sleep(2)
+    lock.close()
+    print(f'\n{stem}: release {tag} · 20 chunk jobs')
+    print(f'run: {r["url"]}  ({r["status"]})', flush=True)
+    return r
+
+
+def wait(r, a):
+    """until the run is completed (gh hiccups are retried)"""
+    while True:
+        p = subprocess.run([GH, 'run', 'view', str(r['databaseId']), '--repo', a.repo, '--json', 'status,conclusion'],
+                           text=True, capture_output=True)
+        try:
+            j = json.loads(p.stdout)
+            if j['status'] == 'completed':
+                print(f'run {r["databaseId"]}: {j["conclusion"]}', flush=True)
+                return
+        except (ValueError, KeyError):
+            pass
+        time.sleep(60)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('projects', nargs='+')
@@ -92,44 +143,18 @@ def main():
     ap.add_argument('--repo', default=REPO)
     ap.add_argument('--no-tsc', action='store_true', help='skip the type check')
     a = ap.parse_args()
-
     zips = HERE / 'zips'
     zips.mkdir(exist_ok=True)
-    files = []
+    # Every video gets its own release and run with all 20 chunk jobs, one after the other: 5 videos in one run
+    # (4 jobs each) were still rendering after 2.5 h (2026-10-27). The next video is zipped while the last one
+    # renders and sent when its run is done.
+    last = None
     for proj in a.projects:
-        project = Path(proj).resolve()
-        if not (project / 'src' / 'index.ts').exists() or not (project / 'public').is_dir():
-            sys.exit(f'{project}: needs src/index.ts and public/')
-        if not a.no_tsc:
-            run([NPX, 'tsc', '--noEmit'], cwd=project)
-        meta = probe(project, a.composition)
-        print(f'{project.name}: {meta}')
-        name = re.sub(r'[^A-Za-z0-9._-]+', '_', project.name)
-        dest = zips / f'{name}.zip'
-        files += make_zip(project, meta, dest)
-
-    workers = max(1, 20 // sum(f.suffix == '.zip' for f in files))
-    # One release + dispatch at a time on this machine (Classic Studio sends several videos at once): the lock keeps
-    # the tag unique and lets the run lookup below find this dispatch, not another video's (2026-10-17 tag clash).
-    lock = open(zips / '.ship.lock', 'w')
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    tag = 'r' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + \
-        hashlib.md5(' '.join(f.stem for f in files if f.suffix == '.zip').encode()).hexdigest()[:6]
-    run([GH, 'release', 'create', tag, *map(str, files), '--repo', a.repo, '--title', tag,
-         '--notes', ', '.join(f.stem for f in files if f.suffix == '.zip')])
-    for f in files:
-        f.unlink()
-    run([GH, 'workflow', 'run', 'render.yml', '--repo', a.repo, '--ref', 'main',
-         '-f', f'release_tag={tag}', '-f', f'workers_per_video={workers}'])
-    time.sleep(6)
-    out = run([GH, 'run', 'list', '--repo', a.repo, '--workflow', 'render.yml', '--limit', '1',
-               '--json', 'databaseId,url,status'], capture=True)
-    r = json.loads(out)[0]
-    time.sleep(2)
-    lock.close()
-    print(f'\nrelease {tag} · {workers} chunk jobs per video')
-    print(f'run: {r["url"]}  ({r["status"]})')
-    print('when it is green, download the MP4 from the run page (artifact final-<name>)')
+        files = prepare(Path(proj).resolve(), a, zips)
+        if last:
+            wait(last, a)
+        last = dispatch(files, a, zips)
+    print('when a run is green, download the MP4 from its run page (artifact final-<name>)')
 
 
 if __name__ == '__main__':
