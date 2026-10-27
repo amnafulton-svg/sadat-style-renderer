@@ -116,7 +116,7 @@ The section workflow found better film than one chat because it planned every se
 - Mark the hook (first ~35 s) and the 3-6 big turns for burns.
 
 ## 2. Find film for every film line
-- Match the footage to the year the line is about: for a modern story, look for footage from that time first.
+- Footage from other years is fine when it fits the line. Only avoid film that looks plainly out of its time (1950s studio cameras under a 2004 newsroom).
 - For each film row: at least 3 searches made for that line, **archive.org first** (`source.py ia-search`), then
   `commons --video`, and only then photos.
 - **You pick with your own eyes.** Open (Read) the sheet of each film you cut from and each photo you use, and pick
