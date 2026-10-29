@@ -34,6 +34,7 @@ ap.add_argument('--editing', choices=('solo', 'sections'), default='solo',
                      'sections: the chat may hand sections to subagent editors (cannabis video, ~$95)')
 ap.add_argument('--media', type=int, default=3, choices=range(0, 7), metavar='0-6',
                 help='most subagents fetching media at once (0 = the chat finds its media itself)')
+ap.add_argument('--sources', help='Notion link or numbered list file: shows "[N] Source in Description" tags')
 ap.add_argument('--launch', action='store_true', help='start the chat in tmux (Opus 5.5, auto permissions)')
 a = ap.parse_args()
 
@@ -97,6 +98,8 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - `tools/validate.py`: the rule check. `tools/repeats.py` (called by validate): same shot/photo twice, blank film.
 - `tools/board.py [--from S --to S]`: review boards, one still per scene, 12 per image with the words spoken over
   each (for the Final check, Done below).
+- `tools/sources.py <list>`: the producer's source numbers ("[17] Source in Description", top right), already made
+  from their list when they gave one (src/lib/sources.json); rerun it only if words.json changes.
 - `tools/mapres.py`, `tools/make_textures.py`: map sharpness, paper/wall textures.
 - `tools/docmark.py <doc> "phrase"`: OCR the scan and print the exact `lines:` rects for a mark on those words
   (`--rows a-b` for whole lines, no phrase to list every line).
@@ -191,6 +194,11 @@ if not a.no_words:
     r = subprocess.run([str(PY), 'tools/words.py'], cwd=proj)
     if r.returncode:
         print('word timings failed: run tools/words.py by hand')
+if a.sources:
+    src = a.sources if a.sources.startswith('http') else str(Path(a.sources).resolve())
+    (proj / 'sources.txt').write_text(src + '\n', encoding='utf8')
+    if subprocess.run([str(PY), 'tools/sources.py', src], cwd=proj).returncode:
+        print('source tags failed: run tools/sources.py by hand')
 cmd = f'cd {proj} && claude --model claude-opus-5-5 --permission-mode auto'
 if a.launch:
     subprocess.run(['tmux', 'new-session', '-d', '-s', name, cmd], check=True)

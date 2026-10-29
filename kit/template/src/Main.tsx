@@ -7,6 +7,7 @@ import {SceneProvider} from './lib/scene';
 import {Enter, OVERLAP} from './transitions';
 import {FilmBurnOverlay, filmBurnTiming} from './vendor/FilmBurn';
 import {Dust, Grain, Vignette} from './overlays';
+import {SourceTags} from './overlays/Sources';
 import {BURNS, END, SCENES, SFX} from './timeline/video';
 
 export const TOTAL_FRAMES = nf(END);
@@ -44,6 +45,7 @@ export const Main: React.FC = () => {
       <Vignette />
       <Grain />
       <Dust />
+      <SourceTags />
 
       {/* audio: narration from frame 0; no music bed yet */}
       <Sequence from={nf(0)} name="narration">
