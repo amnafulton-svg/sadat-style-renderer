@@ -30,8 +30,9 @@ NUM = {'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6
 
 
 def toks(s):
+    s = re.sub(r"\b([a-z]{1,3})-(\d)", r"\1\2", s.lower().replace('’', "'"))  # JN-25D = JN25D, P-38 = P38
     out = []
-    for w in re.findall(r"[a-z0-9]+(?:[:.,][0-9]+)*", s.lower().replace('’', "'")):
+    for w in re.findall(r"[a-z0-9]+(?:[:.,][0-9]+)*", s):
         w = w.replace(',', '')
         w = re.sub(r'(\d+)(st|nd|rd|th)$', r'\1', w)
         if w in NUM:
@@ -39,7 +40,7 @@ def toks(s):
         if w in STOP or (len(w) < 3 and not w.isdigit()):
             continue
         if not w[0].isdigit():
-            w = (w[:-1] if len(w) > 4 and w.endswith('s') else w)[:6]  # crude stem: tables/table, punctual/punctuality
+            w = (w[:-1] if (len(w) > 4 or w[-2:-1].isdigit()) and w.endswith('s') else w)[:6]  # crude stem: tables/table, punctual/punctuality
         out.append(w)
     return out
 
