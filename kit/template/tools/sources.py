@@ -165,6 +165,16 @@ def main():
         j = max(range(lo, hi), key=lambda k: sc[i][k])
         if sc[i][j] > 1.5 * sc[i][pick[i]] + 1.0:
             pick[i] = j
+    # a weak pick may go up to 30 sentences away, only to a sentence that says most of the claim (Hitler's sister
+    # [20] the Jewish doctor sat 14 sentences early because [19] already named him)
+    tops = [sum(sorted((idf(t) for t in set(c)), reverse=True)[:4]) or 1 for c in ctoks]
+    for i in range(n):
+        if sc[i][pick[i]] >= 0.35 * tops[i]:
+            continue
+        lo, hi = max(0, pick[i] - 30), min(m, pick[i] + 31)
+        j = next((k for k in range(lo, hi) if sc[i][k] >= 0.6 * tops[i]), None)  # first one: a long claim starts there
+        if j is not None:
+            pick[i] = j
 
     report, tags = [], []
     for i, (num, claim) in sorted(enumerate(claims), key=lambda x: (pick[x[0]], x[1][0])):
