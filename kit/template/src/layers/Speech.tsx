@@ -29,7 +29,7 @@ export const SpeechInsert: React.FC<{s: Speech}> = ({s}) => {
     <AbsoluteFill>
       <SceneProvider startFrame={0} durFrames={q}>
         <Picture s={s} />
-        <BlackTag at={0.8} x={80} y={850} line1={s.line1} line2={s.line2} />
+        <BlackTag at={0.8} x={80} y={s.subs ? 70 : 850} line1={s.line1} line2={s.line2} />
       </SceneProvider>
       <Vignette />
       <Grain />

@@ -3,7 +3,7 @@
     python tools/speech.py words <file-or-url> [--from S] [--to S]
           # what is said, with word times (whisper), sentence ends marked |: pick a full sentence of 10-20 s
     python tools/speech.py cut <file-or-url> <start> <end> <name> --at T --line1 "Franklin D. Roosevelt"
-          [--line2 "Congress, 8 December 1941"] [--crop W:H:X:Y] [--focus 58]
+          [--line2 "Congress, 8 December 1941"] [--crop W:H:X:Y] [--focus 58] [--subs]
           # -> public/speeches/<name>.mp4 (sound cleaned and levelled to the narrator) + its entry in src/lib/speeches.json
     python tools/speech.py list
     python tools/speech.py rm <name>
@@ -12,7 +12,8 @@ Find the film with tools/source.py (ia-search "roosevelt infamy speech", commons
 downloaded to _cache/speeches/ once. --at is the narration second where the voice-over stops: the `from` of the
 scene the narration goes on with, after a sentence end (a paragraph break plays best). Main.tsx plays the speech there
 between two film burns and the narration then carries on; validate.py checks the placement. --crop removes a
-burned-in timecode or logo (PeriscopeFilm 854x480: 642:395:106:0); check it on a sheet first.
+burned-in timecode or logo (PeriscopeFilm 854x480: 642:395:106:0); check it on a sheet first. A speech not in
+English keeps the film's own English subtitles (never crop them off) and gets --subs: the name tag then goes top left.
 """
 import argparse
 import json
@@ -115,6 +116,8 @@ def cut(a):
         e['line2'] = a.line2
     if a.focus is not None:
         e['focusY'] = a.focus
+    if a.subs:
+        e['subs'] = True
     save(items + [e])
     print(f'{dest.relative_to(ROOT)}  {real} s  at narration {a.at}  ({len(items) + 1} speeches)')
     print(f'check it: node tools/stills.mjs _review/speech sp{sorted(items + [e], key=lambda x: x["at"]).index(e) + 1}+1')
@@ -141,7 +144,8 @@ p = sp.add_parser('words'); p.add_argument('src'); p.add_argument('--from', dest
 p.add_argument('--to', dest='hi', type=float, default=0); p.set_defaults(fn=words)
 p = sp.add_parser('cut'); p.add_argument('src'); p.add_argument('start', type=float); p.add_argument('end', type=float)
 p.add_argument('name'); p.add_argument('--at', type=float, required=True); p.add_argument('--line1', required=True)
-p.add_argument('--line2'); p.add_argument('--crop'); p.add_argument('--focus', type=float); p.set_defaults(fn=cut)
+p.add_argument('--line2'); p.add_argument('--crop'); p.add_argument('--focus', type=float)
+p.add_argument('--subs', action='store_true'); p.set_defaults(fn=cut)
 p = sp.add_parser('list'); p.set_defaults(fn=show)
 p = sp.add_parser('rm'); p.add_argument('name'); p.set_defaults(fn=rm)
 a = ap.parse_args()

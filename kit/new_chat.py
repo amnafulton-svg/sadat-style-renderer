@@ -54,7 +54,7 @@ with its own sound, about 2-4 times in the video. The voice-over finishes its pa
 paragraph break, after a sentence end and a pause, never between two sentences that belong together; the narration
 then goes on. Play a full sentence or two (10-20 s) of the line the script is about, not the words the narrator just
 said. The speaker does not have to face the camera. Only real film of that person at that speech; none found = leave
-it out. Find it with `tools/source.py` (archive.org newsreels, Commons video), read it with `tools/speech.py words`,
+it out. Not in English: only with the film's own English subtitles (keep them, `--subs`), else leave it out. Find it with `tools/source.py` (archive.org newsreels, Commons video), read it with `tools/speech.py words`,
 cut it with `tools/speech.py cut ... --at <the from of the scene the narration goes on with>`. Main.tsx adds the
 name/date tag, the slow push-in and the film burns in and out (no BURNS entry there). All times in the timeline,
 board.py, stills.mjs and validate.py stay narration seconds; `stills.mjs <dir> sp1+3` shows 3 s into speech 1.

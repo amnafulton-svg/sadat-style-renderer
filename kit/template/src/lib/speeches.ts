@@ -13,6 +13,7 @@ export type Speech = {
   line2?: string; // where / when ("Congress, 8 December 1941")
   burnIn?: number; // film burn into the speech (default 4)
   burnOut?: number; // film burn back to the narration (default 5)
+  subs?: boolean; // the film has burned-in English subtitles: the name tag goes top left, off them
   focusY?: number; // % of the frame height the slow push-in heads for (default 58: faces in a lectern shot)
 };
 
