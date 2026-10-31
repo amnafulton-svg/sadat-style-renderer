@@ -35,8 +35,30 @@ ap.add_argument('--editing', choices=('solo', 'sections'), default='solo',
 ap.add_argument('--media', type=int, default=3, choices=range(0, 7), metavar='0-6',
                 help='most subagents fetching media at once (0 = the chat finds its media itself)')
 ap.add_argument('--sources', help='Notion link or numbered list file: shows "[N] Source in Description" tags')
+ap.add_argument('--no-speeches', action='store_true',
+                help="the normal cut: no leaders' filmed speeches between the voice-over parts")
 ap.add_argument('--launch', action='store_true', help='start the chat in tmux (Opus 5.5, auto permissions)')
 a = ap.parse_args()
+
+# leaders' key lines (producer 2026-10-31, from the Bin Laden reference; FDR test v4 approved)
+if a.no_speeches:
+    SPEECH_TOOL = ''
+    SPEECH = ''
+else:
+    SPEECH_TOOL = ('- `tools/speech.py`: a leader\'s filmed speech: `words` (what is said, with times), `cut` (clip + '
+                   'sound cleaned + its entry in src/lib/speeches.json), `list`, `rm`.\n')
+    SPEECH = '''
+## Leaders' key lines (on for this video)
+Where the script points at a leader's own words (a speech, an address, a broadcast), let the real filmed speech play
+with its own sound, about 2-4 times in the video. The voice-over finishes its part first: the speech goes at a
+paragraph break, after a sentence end and a pause, never between two sentences that belong together; the narration
+then goes on. Play a full sentence or two (10-20 s) of the line the script is about, not the words the narrator just
+said. The speaker does not have to face the camera. Only real film of that person at that speech; none found = leave
+it out. Find it with `tools/source.py` (archive.org newsreels, Commons video), read it with `tools/speech.py words`,
+cut it with `tools/speech.py cut ... --at <the from of the scene the narration goes on with>`. Main.tsx adds the
+name/date tag, the slow push-in and the film burns in and out (no BURNS entry there). All times in the timeline,
+board.py, stills.mjs and validate.py stay narration seconds; `stills.mjs <dir> sp1+3` shows 3 s into speech 1.
+'''
 
 if a.media == 0:
     MEDIA = 'Do not use subagents to fetch media: find, download and check it yourself.'
@@ -68,7 +90,8 @@ if proj.exists():
     sys.exit(f'{proj} already exists (pick another name or delete it)')
 
 shutil.copytree(KIT / 'template', proj, ignore=shutil.ignore_patterns(
-    'node_modules', '_cache', '_stills', '_sheets', '_review', '__pycache__', *HELPERS))
+    'node_modules', '_cache', '_stills', '_sheets', '_review', '__pycache__', *HELPERS,
+    *(('speech.py',) if a.no_speeches else ())))
 shutil.copy2(script, proj / 'script.md')
 narr = proj / 'public/audio/narration.mp3'
 if voice.suffix.lower() == '.mp3':
@@ -103,7 +126,7 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - `tools/mapres.py`, `tools/make_textures.py`: map sharpness, paper/wall textures.
 - `tools/docmark.py <doc> "phrase"`: OCR the scan and print the exact `lines:` rects for a mark on those words
   (`--rows a-b` for whole lines, no phrase to list every line).
-
+{SPEECH_TOOL}
 ## 1. Plan before you search (plan.md)
 The section workflow found better film than one chat because it planned every sentence first (zniti test,
 2026-10-26). So before any search (source.py refuses to search until plan.md exists):
@@ -156,7 +179,7 @@ The section workflow found better film than one chat because it planned every se
    spoken words"` (OCR), never a box guessed by eye; circles only ring an area (a town, a signature).
 9. **Labels are always on top and readable.** Name tags and labels are never covered by a print that lands later;
    light type over film or photos keeps its dark backing; keep type off bright sky.
-
+{SPEECH}
 ## How the work is split (the producer's choice)
 {SPLIT}
 

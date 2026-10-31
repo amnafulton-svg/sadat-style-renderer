@@ -72,13 +72,20 @@ def main():
         shots.append(((fr + to) / 2, sc['id'], 'mid', fr, to))
         if sc['end'] and to - fr > 1.5:
             shots.append((to - 0.3, sc['id'], 'end frame', fr, to))
+    # each leader's speech insert gets a tile too (stills.mjs token sp<k>+<sec>: seconds into speech k)
+    spf = ROOT / 'src/lib/speeches.json'
+    for k, sp in enumerate(sorted(json.loads(spf.read_text(encoding='utf8')) if spf.exists() else [],
+                                  key=lambda x: x['at']), 1):
+        if a.lo <= sp['at'] < a.hi:
+            shots.append((sp['at'] - 0.001, f'speech {k}', f"sp{k}+{sp['dur'] / 2:.2f}", sp['at'], sp['at']))
+    shots.sort(key=lambda x: x[0])
     if not shots:
         raise SystemExit('no scenes in that range')
     out = ROOT / a.out
     frames = out / 'frames'
     shutil.rmtree(frames, ignore_errors=True)
     frames.mkdir(parents=True)
-    ts = [f"{t:.2f}" for t, *_ in shots]
+    ts = [lab if lab.startswith('sp') else f"{t:.2f}" for t, _, lab, *_ in shots]
     r = subprocess.run(['node', 'tools/stills.mjs', str(frames), *ts], capture_output=True, text=True)
     files = [Path(x) for x in r.stdout.split() if x.endswith('.jpg')]
     if len(files) != len(shots):
@@ -96,7 +103,11 @@ def main():
             x, y = (i % COLS) * (TW + 8), (i // COLS) * (TH + CAP + 8)
             th = Image.open(f).convert('RGB').resize((TW, TH))
             im.paste(th, (x, y))
-            spoken = ' '.join(w['w'] for w in words if fr - 0.05 <= w['s'] < to)
+            if fr == to:  # a speech tile: who speaks, not the narration
+                sp = next(x for x in json.loads(spf.read_text(encoding='utf8')) if x['at'] == fr)
+                spoken = f"SPEECH {sp.get('line1', '')} / {sp.get('line2', '')}"
+            else:
+                spoken = ' '.join(w['w'] for w in words if fr - 0.05 <= w['s'] < to)
             dr.text((x + 2, y + TH + 2), f"#{b + i + 1} {sid}  {mmss(fr)}-{mmss(to)}  ({label} @{mmss(t)})",
                     fill=(170, 30, 20), font=f1)
             for k, line in enumerate(textwrap.wrap(f'"{spoken}"', 62)[:3]):

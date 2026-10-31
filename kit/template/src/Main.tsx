@@ -1,5 +1,6 @@
 // The composition: scenes in <Sequence>s (each wrapped in its SceneProvider + entrance transition),
-// then the film-burn transitions (with their own sound), then the global film skin, then audio.
+// then the film-burn transitions (with their own sound), then the global film skin, then audio (= Story, on the
+// narration clock). Main plays Story and cuts the leaders' speeches (src/lib/speeches.json) in between its parts.
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame} from 'remotion';
 import {nf, sf} from './lib/core';
@@ -8,11 +9,13 @@ import {Enter, OVERLAP} from './transitions';
 import {FilmBurnOverlay, filmBurnTiming} from './vendor/FilmBurn';
 import {Dust, Grain, Vignette} from './overlays';
 import {SourceTags} from './overlays/Sources';
+import {SpeechInsert} from './layers/Speech';
+import {SPEECHES, SPEECH_FRAMES, speechFrames} from './lib/speeches';
 import {BURNS, END, SCENES, SFX} from './timeline/video';
 
-export const TOTAL_FRAMES = nf(END);
+export const TOTAL_FRAMES = nf(END) + SPEECH_FRAMES;
 
-export const Main: React.FC = () => {
+export const Story: React.FC = () => {
   const fadeOut = nf(END) - sf(2.2);
   return (
     <AbsoluteFill style={{background: '#000'}}>
@@ -59,6 +62,45 @@ export const Main: React.FC = () => {
       ))}
     </AbsoluteFill>
   );
+};
+
+/** Story in parts, split at each speech: part k plays narration frames [cut k-1, cut k) and is shifted later by the
+ *  speeches before it (the nested Sequence keeps every frame, audio included, on the narration clock). A burn hides
+ *  each join: into the speech on its first frame, back to the narration on its last. */
+export const Main: React.FC = () => {
+  if (!SPEECHES.length) return <Story />;
+  const cuts = SPEECHES.map((s) => nf(s.at));
+  const out: React.ReactNode[] = [];
+  let shift = 0;
+  cuts.concat([nf(END)]).forEach((c, k) => {
+    const a = k ? cuts[k - 1] : 0;
+    out.push(
+      <Sequence key={`part${k}`} name={`narration part ${k + 1}`} from={a + shift} durationInFrames={c - a}>
+        <Sequence from={-a}>
+          <Story />
+        </Sequence>
+      </Sequence>,
+    );
+    const s = SPEECHES[k];
+    if (!s) return;
+    const at = c + shift;
+    const q = speechFrames(s);
+    out.push(
+      <Sequence key={`speech${k}`} name={`speech ${s.line1}`} from={at} durationInFrames={q}>
+        <SpeechInsert s={s} />
+      </Sequence>,
+    );
+    for (const [n, f] of [[s.burnIn ?? 4, at], [s.burnOut ?? 5, at + q]]) {
+      const {pre, frames} = filmBurnTiming(n, 25);
+      out.push(
+        <Sequence key={`sb${k}-${f}`} name={`speech burn ${n}`} from={f - pre} durationInFrames={frames}>
+          <FilmBurnOverlay n={n} />
+        </Sequence>,
+      );
+    }
+    shift += q;
+  });
+  return <AbsoluteFill style={{background: '#000'}}>{out}</AbsoluteFill>;
 };
 
 const FadeToBlack: React.FC<{dur: number}> = ({dur}) => {

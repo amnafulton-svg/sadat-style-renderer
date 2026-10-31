@@ -530,6 +530,28 @@ for sid, fr, to, en, b in scenes:
             E(f'{sid}: the name {names} under {src.group(1)} runs off the {"left" if left < 20 else "right"} edge: '
               f'move the print in or shorten the name')
 
+# leaders' speech inserts (src/lib/speeches.json, tools/speech.py): the voice-over stops at a part break, never in a
+# sentence (producer 2026-10-31: "the voice over splited into parts so it doesnt sound like its cut from the middle")
+_spf = ROOT / 'src/lib/speeches.json'
+SPEECHES = json.loads(_spf.read_text(encoding='utf8')) if _spf.exists() else []
+for sp in SPEECHES:
+    at, f = sp.get('at', -1), ROOT / 'public/speeches' / str(sp.get('file', ''))
+    tag = f"speech {sp.get('line1', '?')} at {at}"
+    if not f.is_file():
+        E(f'{tag}: public/speeches/{sp.get("file")} is missing')
+    if not 8 <= sp.get('dur', 0) <= 25:
+        Wn(f'{tag}: {sp.get("dur")} s (a full sentence of 10-20 s plays best)')
+    if not any(abs(sc[1] - at) < 0.05 for sc in scenes[1:]):
+        E(f'{tag}: not on a scene start (set at to the `from` of the scene the narration goes on with)')
+    prev = [w for w in W if w['e'] <= at + 0.05]
+    if prev and not re.search(r'[.!?]["\')]?$', prev[-1]['w']):
+        E(f'{tag}: the narration stops mid-sentence (after "{prev[-1]["w"]}"); put it after a sentence end')
+    nxt = [w for w in W if w['s'] >= at - 0.05]
+    if prev and nxt and nxt[0]['s'] - prev[-1]['e'] < 0.3:
+        Wn(f'{tag}: only {nxt[0]["s"] - prev[-1]["e"]:.2f} s between the words around it; a paragraph break plays best')
+    if any(abs(b - at) < 1.5 for b, _ in burns):
+        E(f'{tag}: a BURNS entry sits on it; the speech brings its own burns in and out')
+
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -565,5 +587,5 @@ for w in warns:
     print('WARN ', w)
 for e in errs:
     print('ERROR', e)
-print(f'{len(scenes)} scenes, END {END}, {len(burns)} burns: {len(errs)} errors, {len(warns)} warnings')
+print(f'{len(scenes)} scenes, END {END}, {len(burns)} burns, {len(SPEECHES)} speeches: {len(errs)} errors, {len(warns)} warnings')
 raise SystemExit(1 if errs else 0)
