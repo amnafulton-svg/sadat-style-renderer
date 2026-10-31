@@ -22,7 +22,7 @@ const Tag: React.FC<{n: number[]; dur: number}> = ({n, dur}) => {
   const spacing = interpolate(f, [4, 18], [0.32, 0.01], clamp);
   const wide = (num.length + label.length + 3) * 19.5; // ~Poppins 600 at 34 px; a long "[11, 12, 13]" slides left
   return (
-    <div style={{position: 'absolute', left: Math.min(1222, 1860 - wide), top: 62, display: 'flex', alignItems: 'baseline', gap: 12,
+    <div style={{position: 'absolute', left: 1860 - wide, top: 24, display: 'flex', alignItems: 'baseline', gap: 12,
       fontFamily: POPPINS, fontWeight: 600, fontSize: 34, color: '#fff', whiteSpace: 'pre',
       textShadow: '0 2px 6px rgba(0,0,0,.75), 0 0 2px rgba(0,0,0,.6)', opacity: out >= OUT ? 0 : 1}}>
       <span style={{opacity: bracketsOn ? 1 : 0}}>[<span style={{opacity: numOn ? 1 : 0}}>{num}</span>]</span>
