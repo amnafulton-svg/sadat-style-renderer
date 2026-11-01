@@ -153,13 +153,27 @@ const LineChart = ({chart, t}: {chart: ArchiveChart; t: number}) => {
           const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
           const color = s.color === 'cream' ? CREAM : GOLD;
           const primary = si === 0;
+          // the line name sits right of its end, but a line ending near the plot's right edge leaves ~220 px and the
+          // name ran off the frame ("NO COMPLET", 1926 video 2026-11-01): then it goes right-aligned under the end dot,
+          // below the line over its whole width (26 px caps, 3 px tracking ~ 20 px a letter)
+          const end = pts[pts.length - 1];
+          const nameW = (s.label ?? '').length * 20;
+          const inside = sx(s.points[s.points.length - 1][0]) + 18 + nameW > 1880;
+          let nameY = end[1] + (primary ? 44 : 30);
+          if (inside) {
+            for (let x = end[0] - nameW; x < end[0]; x += 20) {
+              const k = pts.findIndex((p) => p[0] >= x);
+              if (k > 0) nameY = Math.max(nameY, pts[k - 1][1] + ((x - pts[k - 1][0]) / (pts[k][0] - pts[k - 1][0] || 1)) * (pts[k][1] - pts[k - 1][1]) + 40);
+            }
+            nameY = Math.min(nameY, PLOT.bottom - 12);
+          }
           return (
             <g key={si}>
               {primary ? <path d={`${d} L${pts[pts.length - 1][0]},${PLOT.bottom} L${pts[0][0]},${PLOT.bottom} Z`} fill="url(#chartArea)" /> : null}
               <path d={d} stroke={color} strokeWidth={primary ? 5 : 3.5} fill="none" strokeLinejoin="round" strokeLinecap="round" opacity={primary ? 1 : 0.75} />
               {t > startAt ? <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={primary ? 9 : 6} fill={color} /> : null}
               {s.label && t > startAt ? (
-                <text x={pts[pts.length - 1][0] + 18} y={pts[pts.length - 1][1] + (primary ? 44 : 30)} style={{...styles.seriesText, fill: color}}>{s.label}</text>
+                <text x={inside ? end[0] : end[0] + 18} y={nameY} textAnchor={inside ? 'end' : 'start'} style={{...styles.seriesText, fill: color}}>{s.label}</text>
               ) : null}
             </g>
           );
