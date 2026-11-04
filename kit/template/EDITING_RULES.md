@@ -78,8 +78,10 @@ map/chart → only then type. Never an AI image.
 **HOUSE media rules:**
 - Real media only: archive.org film, then Wikimedia Commons photos/scans/documents, then graphics (map, chart,
   type). **No AI images, ever (producer, 2026-10-16)** — not even as a last resort.
-- The outro (the closing "subscribe ... see you in the next one" call to action) plays **2 Pexels stock videos**
-  without people (calm shots that fit the topic: sky, sea, the place, old buildings), one after the other.
+- The outro (the closing "subscribe ... see you in the next one" call to action, and any pointer to another video)
+  is **footage only, no text on screen** (producer, 2026-11-04): **2 Pexels stock videos** without people (calm shots
+  that fit the topic: sky, sea, the place, old buildings), one after the other. No SUBSCRIBE/LIKE/COMMENT type, no
+  next-video title, no tags, tapes, dates, names or prints there. Give those scenes ids starting `outro`.
 - Era-matched: no 1950s film under a 1990s line.
 - **HOUSE:** before ~1895 no film exists, so the earliest street film is an accepted stand-in for 19th-century life, but
   never with automobiles, modern signs or 20th-century machines under a line about an earlier year (pick other seconds

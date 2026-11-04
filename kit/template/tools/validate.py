@@ -7,6 +7,8 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        a picture change in the middle of a sentence (outside the hook), the same clip/photo twice after the hook,
        text-only screens (type with no film/print/doc/map/chart) over 5 % of the runtime or two in a row,
        camera keys outside scale 0.95-1.12 or zooming faster than 3 % per second,
+       any text or print in the outro (scenes with "outro" in the id, or from the closing
+       "subscribe/comment/next video" sentence on): footage only,
        one picture held over 3+ sentences (> 8 s, outside the hook), a scene that opens on an empty backdrop
        (its first print/doc lands > 1 s after the cut), a chart whose first value lands > 4.5 s after its axis (WARN > 3 s),
        and from tools/repeats.py (frames compared by picture, cached in _cache/repeat_hashes.json): the same film shot
@@ -551,6 +553,25 @@ for sp in SPEECHES:
         Wn(f'{tag}: only {nxt[0]["s"] - prev[-1]["e"]:.2f} s between the words around it; a paragraph break plays best')
     if any(abs(b - at) < 1.5 for b, _ in burns):
         E(f'{tag}: a BURNS entry sits on it; the speech brings its own burns in and out')
+
+# the outro is footage only: no text and no prints (producer, 2026-11-04)
+OUTRO_TEXT = ('Highlight', 'LabelTape', 'DateTag', 'BigSerif', 'BlackTag', 'NameStrip', 'ListWords', 'QuoteText',
+              'GhostTitle', 'KraftNote', 'PhotoPrint', 'FullPhoto', 'DocCard', 'DocMap', 'Chart', 'SpeechInsert')
+_cta = None
+for i, w in enumerate(W):
+    if w['s'] >= END - 90 and re.match(r"(subscrib|comment|like)", w['w'].strip('.,!?"\'').lower()):
+        j = i
+        while j > 0 and not re.search(r'[.!?]["\')]?$', W[j - 1]['w']):
+            j -= 1
+        _cta = W[j]['s']
+        break
+for sid, fr, to, en, b in scenes:
+    if 'outro' in sid or (_cta is not None and fr >= _cta - 0.5):
+        found = sorted({x for x in OUTRO_TEXT if re.search(rf'<{x}\b', b)})
+        if found:
+            E(f'{sid}: outro shows {", ".join(found)}; the outro is footage only, no text (2 Pexels videos)')
+        if not re.search(r'<F\b', b):
+            E(f'{sid}: outro scene without footage (2 Pexels videos, no text)')
 
 # the same shot under two file names (cut twice from one archive film, a photo saved twice), blank film: ERROR;
 # smeared film and blocky maps: WARN
