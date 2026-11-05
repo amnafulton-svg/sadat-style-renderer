@@ -126,6 +126,8 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - `tools/mapres.py`, `tools/make_textures.py`: map sharpness, paper/wall textures.
 - `tools/docmark.py <doc> "phrase"`: OCR the scan and print the exact `lines:` rects for a mark on those words
   (`--rows a-b` for whole lines, no phrase to list every line).
+- `node tools/headline.mjs <url> <name> "phrase" ...`: a real news article as a HeadlineCard picture (2x, ads hidden)
+  with the exact boxes of the headline and each phrase. Open the png: a paywall or block page means another outlet.
 {SPEECH_TOOL}
 ## 1. Plan before you search (plan.md)
 The section workflow found better film than one chat because it planned every sentence first (zniti test,
@@ -134,7 +136,7 @@ The section workflow found better film than one chat because it planned every se
 - Write `plan.md`: one table row per sentence (or spoken list), in order:
   `| # | Time | Line | Plane | Source ideas |` with Time in seconds (`12.40-18.90`) and the line's words.
 - Plane = what the screen is for that line: **film** (it was filmed: events, places, crowds, machines, war, any
-  moment after ~1900), **named** (a person: print + names), **geography** (DocMap), **document** (DocCard of the real
+  moment after ~1900), **named** (a person: print + names), **geography** (DocMap), **document** (a HeadlineCard of the real article when the press reported it, else DocCard of the real
   paper), **numbers** (chart, or a figure over film), **list** (one cut per item), **argument** (real film/photos with a
   highlight). Never a text-only screen.
 - Source ideas = the exact thing seen on this line and 2-3 searches for it (the event, the place, the year, the

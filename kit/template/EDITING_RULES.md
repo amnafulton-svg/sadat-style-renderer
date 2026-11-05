@@ -38,6 +38,7 @@ Moving between these three planes means something. Film → board says "now look
 | 2 | Archive film | `F` (= `Film` with auto-pad, `timeline/video.tsx`) | The narration describes something that was filmed |
 | 3 | Map | `DocMap` (`layers/Evidence.tsx`) | **HOUSE:** journeys, borders, who held what. NASA terrain, 3D tilt |
 | 4 | Document | `DocCard` (`layers/Evidence.tsx`) | **HOUSE:** a real scan (law, treaty, letter, newspaper) with the quoted line marked on its word |
+| 4b | News page | `HeadlineCard` (`layers/Headline.tsx`) | A real news article (headline, the line being read) on the wall, highlighter on its words |
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
@@ -60,6 +61,10 @@ Moving between these three planes means something. Film → board says "now look
 4. **A document is quoted or named (a law, treaty, letter, headline)?** → `DocCard` with the real scan, the quoted
    words marked as they are spoken. **HOUSE:** the mark's `lines` come from `tools/docmark.py <scan> "the words"`
    (OCR), never a box guessed by eye; validate errors on a mark that is not on printed lines.
+4b. **The press reported it (a news story, a study's coverage, "the papers wrote")?** → `HeadlineCard`: the real
+   article page from `node tools/headline.mjs <url> <name> "the words"` (its boxes, never guessed), the camera on the
+   headline, then on the line being read, highlighted as it is spoken. **HOUSE (producer, 2026-11-05):** no count:
+   use it whenever it is the right picture for that moment, never as filler between films.
 5. **Numbers the script gives?** → `Chart` (line or bars) landing on the spoken figures, or `BigSerif` for one number
    **over film or a print** of what the number counts (bank crowds under a bank count, bread lines under jobless %).
 6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`
