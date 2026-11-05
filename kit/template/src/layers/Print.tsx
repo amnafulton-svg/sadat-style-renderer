@@ -266,15 +266,19 @@ export const BlackTag: React.FC<{at: number; x: number; y: number; line1: string
   );
 };
 
-/** black date tag with white serif date ("24 October 1972" in the reference); typed on letter by letter (done in 0.6 s at most) */
-export const DateTag: React.FC<{at: number; text: string; x: number; y: number; size?: number}> = ({at, text, x, y, size = 46}) => {
+/** black date tag with white serif date ("24 October 1972" in the reference); typed on letter by letter (done in 0.6 s at most).
+ *  HOUSE (producer 2026-11-05): always in a top corner, never mid-frame over faces: top left by default, corner="right"
+ *  puts it top right under the source tag. x/y are ignored (kept so older cuts still compile). */
+export const DateTag: React.FC<{at: number; text: string; x?: number; y?: number; size?: number; corner?: 'left' | 'right'}> = ({at, text, corner = 'left', size = 46}) => {
   const cue = useCue();
   const {frame} = useScene();
   const s = cue(at) - 4;
   const n = Math.max(0, Math.min(text.length, Math.floor((frame - s) / Math.min(1.2, 15 / Math.max(1, text.length)))))  // typed in <= 0.6 s;
-  const left = Math.min(x, 1920 - 48 - (text.length * size * 0.62 + 56)); // a long date never runs off the right edge
+  const w = text.length * size * 0.62 + 56;
+  const left = corner === 'right' ? 1920 - 64 - w : 64;
+  const top = corner === 'right' ? 150 : 56; // right: below "[N] Source in Description"
   return (
-    <div style={{position: 'absolute', left, top: Math.max(40, Math.min(y, 1040 - size * 1.25 - 28)), background: C.tag, padding: '14px 28px', opacity: frame >= s ? 1 : 0, boxShadow: '0 8px 20px rgba(0,0,0,.5)', zIndex: Z_LABEL}}>
+    <div style={{position: 'absolute', left, top, background: C.tag, padding: '14px 28px', opacity: frame >= s ? 1 : 0, boxShadow: '0 8px 20px rgba(0,0,0,.5)', zIndex: Z_LABEL}}>
       <span style={{fontFamily: FONT.serif, fontSize: size, color: '#f4f0e6', whiteSpace: 'pre'}}>{text.slice(0, n)}</span>
       <span style={{fontFamily: FONT.serif, fontSize: size, color: 'transparent', whiteSpace: 'pre'}}>{text.slice(n)}</span>
     </div>

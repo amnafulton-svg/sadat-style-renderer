@@ -1,3 +1,5 @@
+// NOTE (2026-11-05): Highlight is quote-only now (a real quote from a person or document, in quote marks). The
+// Highlight lines below are the old keyword look: don't copy them.
 // "Why Did the US Get Rich But Latin America Never Did" (359.1 s narration, no title: it starts on the first word).
 // Same grammar as quincy.tsx: film for concrete statements, prints on a wall/paper for named things,
 // type on black/concrete for the argument. Pictures change on a sentence end or pause; rhythmic lists cut per item.

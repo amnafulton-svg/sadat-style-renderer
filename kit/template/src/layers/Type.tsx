@@ -1,7 +1,8 @@
 // Type layers. In the reference, text never narrates — it STAMPS the one word the viewer must keep:
 // a year, a count, a name, a verdict. Each element lands on its spoken word, never before.
 // BigSerif   — huge didone figure ("1967", "22 times"): numbers that carry the argument. Blur-in pop.
-// Highlight  — serif phrase with a crimson bar growing behind it, over footage: the claim being made.
+// Highlight  — serif phrase with a crimson bar growing behind it, over footage: ONLY a real quote from a person or
+//              document, in quote marks (producer 2026-11-05; validate.py errors otherwise).
 // QuoteText  — word-by-word blur-in serif, timed to the voice reading it.
 // GhostTitle — huge faint section word behind an expert/quote card: the theme of the passage.
 // LabelTape  — typewriter text on dark embossed tape: an institution / file label.

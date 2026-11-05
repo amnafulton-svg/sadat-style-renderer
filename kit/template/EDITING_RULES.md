@@ -42,7 +42,7 @@ Moving between these three planes means something. Film → board says "now look
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
 | 7 | Annotations | `PhotoPrint names=`, `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
-| 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember |
+| 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember. **HOUSE:** `Highlight` (the red bar) only for a real quote from a person or document, in quote marks |
 | 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow drift over a board (scale 0.95-1.12, at most 3 % per second); prints never move on their own once they land |
 | 10 | Transition | `Enter` kinds + `BURNS` (`Main.tsx`) | Between scenes (sec. 5) |
 | 11 | Skin | `Grain`, `Dust`, `Vignette` (`overlays/`) | Always on, every frame (makes film and paper one printed object) |
@@ -65,7 +65,9 @@ Moving between these three planes means something. Film → board says "now look
 6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`
    on it). `ListWords` / `KraftNote` only on top of a picture.
 7. **A quote or the argument itself** → film or real photos of what the line is about (its era, its people, its
-   places, its objects), with `Highlight` over the film for the key words. Abstract lines ("money vanished", "trust
+   places, its objects). **HOUSE (producer, 2026-11-05):** the red bar (`Highlight`) is only for a real quote from a
+   person or a document, its words in quote marks (`text="“No misgivings”"`); never the narrator's own key words
+   ("NEVER TOLD", "THE QUESTION"): they made the video look templated. validate.py errors on any other red bar. Abstract lines ("money vanished", "trust
    broke") still get real pictures: empty tills, closed banks, crowds, faces, the objects named.
 
 **HOUSE: no slideshow (producer, 2026-10-16).** Text alone on `Black`, `ConcreteWall` or `Paper` (QuoteText /
@@ -131,6 +133,8 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   prints, not on their edges or captions, and stay inside the frame at the end of every camera move.
   Light type over film gets a dark backing by itself; still keep it off the brightest part of the frame (sky).
   Labels always draw above prints, so a print landing later never hides a bar.
+- **HOUSE: `DateTag` sits in a top corner (producer, 2026-11-05)**, top left by itself, never mid-frame over a face
+  or the thing to see; if a face or the subject is in the top left, give it `corner="right"`. (x/y are ignored.)
 - **HOUSE: a date or number lands on its word.** A `DateTag`, `BigSerif`, `Highlight` or tape carrying a date or
   figure appears by the time it is said (validate errors when it lands > 0.6 s late). If the sentence that says the
   date starts during the scene before, the new scene starts at that sentence, not on the next comma.

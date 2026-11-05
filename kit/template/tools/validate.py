@@ -504,7 +504,7 @@ for sid, fr, to, en, b in scenes:
         if row > w * 1.5:
             E(f'{sid}: the names {names} under {src.group(1)} are much wider than the photo ({row:.0f} px vs {w:.0f}): '
               f'shorten them (sub), set a smaller size or widen the print')
-        for lb in re.finditer(r'<(LabelTape|Highlight|BlackTag|DateTag)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', b, re.S):
+        for lb in re.finditer(r'<(LabelTape|Highlight|BlackTag)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', b, re.S):
             la = lb.group(2)
             lx, ly = (re.search(rf'\b{k}=\{{\s*(-?[\d.]+)\s*\}}', la) for k in ('x', 'y'))
             if not lx or not ly:
@@ -553,6 +553,20 @@ for sp in SPEECHES:
         Wn(f'{tag}: only {nxt[0]["s"] - prev[-1]["e"]:.2f} s between the words around it; a paragraph break plays best')
     if any(abs(b - at) < 1.5 for b, _ in burns):
         E(f'{tag}: a BURNS entry sits on it; the speech brings its own burns in and out')
+
+# the red bar is only for real quotes (producer, 2026-11-05: keyword bars repeating the narrator looked templated)
+_HL = re.compile(r'<Highlight\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', re.S)
+_HLTEXT = re.compile(r"""\btext=(?:"([^"]*)"|\{\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)\s*\})""", re.S)
+for sid, fr, to, en, b in scenes:
+    for h in _HL.finditer(b):
+        m = _HLTEXT.search(h.group(1))
+        if not m:
+            Wn(f'{sid}: a Highlight whose text the check cannot read; the red bar is only for a real quote in quote marks')
+            continue
+        txt = next(g for g in m.groups() if g is not None).strip()
+        if not re.match(r'[“"‘\'«„]', txt):
+            E(f'{sid}: Highlight "{txt}" is not a quote. The red bar is only for a real quote from a person or document, '
+              f'in quote marks; drop it (the film carries the line), or mark the words on the DocCard')
 
 # the outro is footage only: no text and no prints (producer, 2026-11-04)
 OUTRO_TEXT = ('Highlight', 'LabelTape', 'DateTag', 'BigSerif', 'BlackTag', 'NameStrip', 'ListWords', 'QuoteText',
