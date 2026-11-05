@@ -39,6 +39,7 @@ Moving between these three planes means something. Film → board says "now look
 | 3 | Map | `DocMap` (`layers/Evidence.tsx`) | **HOUSE:** journeys, borders, who held what. NASA terrain, 3D tilt |
 | 4 | Document | `DocCard` (`layers/Evidence.tsx`) | **HOUSE:** a real scan (law, treaty, letter, newspaper) with the quoted line marked on its word |
 | 4b | News page | `HeadlineCard` (`layers/Headline.tsx`) | A real news article (headline, the line being read) on the wall, highlighter on its words |
+| 4c | Chain board | `ChainBoard` (`layers/Chain.tsx`) | Prints (films play inside) pinned on a wall, red string joining causes/people to one thing, camera flying link to link |
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
@@ -65,6 +66,10 @@ Moving between these three planes means something. Film → board says "now look
    article page from `node tools/headline.mjs <url> <name> "the words"` (its boxes, never guessed), the camera on the
    headline, then on the line being read, highlighted as it is spoken. **HOUSE (producer, 2026-11-05):** no count:
    use it whenever it is the right picture for that moment, never as filler between films.
+4c. **The script ties several causes, people or steps to one thing ("three pressures met", "from A to B to C")?** →
+   `ChainBoard`: each link's real film or photo pinned on the wall as it is named, a red string to what it leads to,
+   the camera on each link, then back to the whole chain. **HOUSE (producer, 2026-11-05):** no count: use it when the
+   narration really is a chain, never as filler.
 5. **Numbers the script gives?** → `Chart` (line or bars) landing on the spoken figures, or `BigSerif` for one number
    **over film or a print** of what the number counts (bank crowds under a bank count, bread lines under jobless %).
 6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`

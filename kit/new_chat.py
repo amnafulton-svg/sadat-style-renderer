@@ -138,7 +138,7 @@ The section workflow found better film than one chat because it planned every se
 - Plane = what the screen is for that line: **film** (it was filmed: events, places, crowds, machines, war, any
   moment after ~1900), **named** (a person: print + names), **geography** (DocMap), **document** (a HeadlineCard of the real article when the press reported it, else DocCard of the real
   paper), **numbers** (chart, or a figure over film), **list** (one cut per item), **argument** (real film/photos with a
-  highlight). Never a text-only screen.
+  highlight; a ChainBoard when the line links several causes or people to one thing). Never a text-only screen.
 - Source ideas = the exact thing seen on this line and 2-3 searches for it (the event, the place, the year, the
   newsreel name), not the video's topic.
 - Mark the hook (first ~35 s) and the 3-6 big turns for burns.
