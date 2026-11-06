@@ -126,7 +126,7 @@ A Sadat-style documentary built in Remotion from this folder, by you, in this on
 - `tools/mapres.py`, `tools/make_textures.py`: map sharpness, paper/wall textures.
 - `tools/docmark.py <doc> "phrase"`: OCR the scan and print the exact `lines:` rects for a mark on those words
   (`--rows a-b` for whole lines, no phrase to list every line).
-- `node tools/headline.mjs <url> <name> "phrase" ...`: a real news article as a HeadlineCard picture (2x, ads hidden)
+- `node tools/headline.mjs <url> <name> "phrase" ...`: a real news article as a HeadlineCard picture (2x, ads and clutter hidden; pass its printed site= so the card shows the outlet address)
   with the exact boxes of the headline and each phrase. Open the png: a paywall or block page means another outlet.
 {SPEECH_TOOL}
 ## 1. Plan before you search (plan.md)

@@ -38,7 +38,7 @@ Moving between these three planes means something. Film → board says "now look
 | 2 | Archive film | `F` (= `Film` with auto-pad, `timeline/video.tsx`) | The narration describes something that was filmed |
 | 3 | Map | `DocMap` (`layers/Evidence.tsx`) | **HOUSE:** journeys, borders, who held what. NASA terrain, 3D tilt |
 | 4 | Document | `DocCard` (`layers/Evidence.tsx`) | **HOUSE:** a real scan (law, treaty, letter, newspaper) with the quoted line marked on its word |
-| 4b | News page | `HeadlineCard` (`layers/Headline.tsx`) | A real news article (headline, the line being read) on the wall, highlighter on its words |
+| 4b | News page | `HeadlineCard` (`layers/Headline.tsx`) | A real news article (headline, the line being read) in a browser window with the outlet address, marker on its words |
 | 4c | Chain board | `ChainBoard` (`layers/Chain.tsx`) | Prints (films play inside) pinned on a wall, red string joining causes/people to one thing, camera flying link to link |
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
