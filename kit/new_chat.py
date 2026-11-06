@@ -136,8 +136,9 @@ The section workflow found better film than one chat because it planned every se
 - Write `plan.md`: one table row per sentence (or spoken list), in order:
   `| # | Time | Line | Plane | Source ideas |` with Time in seconds (`12.40-18.90`) and the line's words.
 - Plane = what the screen is for that line: **film** (it was filmed: events, places, crowds, machines, war, any
-  moment after ~1900), **named** (a person: print + names), **geography** (DocMap), **document** (a HeadlineCard of the real article when the press reported it, else DocCard of the real
-  paper), **numbers** (chart, or a figure over film), **list** (one cut per item), **argument** (real film/photos with a
+  moment after ~1900), **named** (a person: print + names), **geography** (DocMap), **document** (a document the story rests on, such as a law, treaty, letter, telegram, diary or file, gets
+  its real scan as a DocCard; a HeadlineCard of the real article is for when the press reported it, never a stand-in
+  for the document), **numbers** (chart, or a figure over film), **list** (one cut per item), **argument** (real film/photos with a
   highlight; a ChainBoard when the line links several causes or people to one thing). Never a text-only screen.
 - Source ideas = the exact thing seen on this line and 2-3 searches for it (the event, the place, the year, the
   newsreel name), not the video's topic.
