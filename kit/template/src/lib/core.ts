@@ -6,6 +6,7 @@ import {loadFont as loadPlayfair} from '@remotion/google-fonts/PlayfairDisplay';
 import {loadFont as loadCaslon} from '@remotion/google-fonts/LibreCaslonText';
 import {loadFont as loadElite} from '@remotion/google-fonts/SpecialElite';
 import {loadFont as loadOswald} from '@remotion/google-fonts/Oswald';
+import {loadFont as loadReenie} from '@remotion/google-fonts/ReenieBeanie';
 import words from './words.json';
 
 export const FPS = 25; // the reference is 25 fps
@@ -20,6 +21,7 @@ export const FONT = {
   didone: loadPlayfair('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // big numbers / years / section titles ("1967", "22 times")
   serif: (loadCaslon('italic', {weights: ['400'], subsets: ['latin']}), loadCaslon('normal', {weights: ['400'], subsets: ['latin']})).fontFamily, // quotes, list words, name strips
   type: loadElite('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // typewriter label tape, date stamps
+  hand: loadReenie('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // pencil handwriting: a portrait's name written beside its print (PhotoPrint hand=)
   cond: loadOswald('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // red caps on kraft notes
 };
 

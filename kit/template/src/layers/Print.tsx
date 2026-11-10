@@ -32,7 +32,8 @@ export const PhotoPrint: React.FC<{
   children?: React.ReactNode; // annotations in print-local px
   tag?: {line1: string; line2?: string; at?: number; size?: number}; // the print's black caption, stuck on its bottom-left edge
   names?: PrintNameT[]; // name strips hung under the photo; fx = where that person stands (0-1) orders them left to right
-}> = ({src, at, x, y, w, rot = 0, from = 'bottom', grade = 'sepia', border = 14, objectPosition = 'center', aspect, drift = 18, film, children, tag, names}) => {
+  hand?: PrintHandT; // one person's portrait: the name written by hand in pencil on the wall beside the print
+}> = ({src, at, x, y, w, rot = 0, from = 'bottom', grade = 'sepia', border = 14, objectPosition = 'center', aspect, drift = 18, film, children, tag, names, hand}) => {
   const cue = useCue();
   const {frame, durFrames} = useScene();
   const start = cue(at) - 8; // lands on the word: the 8-frame flight ends as the word starts
@@ -100,6 +101,7 @@ export const PhotoPrint: React.FC<{
         </div>
       )}
       {tag && <PrintTag {...tag} at={tag.at ?? at + 0.2} />}
+      {hand && <PrintHand {...hand} side={hand.side ?? (x < 960 ? 'right' : 'left')} room={((hand.side ?? (x < 960 ? 'right' : 'left')) === 'right' ? 1920 - (x + w / 2) : x - w / 2) - 150} />}
     </div>
   );
 };
@@ -129,6 +131,60 @@ const PrintName: React.FC<PrintNameT> = ({text, sub, at, rot = -2, size = 34}) =
     >
       <div style={{fontFamily: FONT.serif, fontSize: size, color: '#151515', lineHeight: 1.05}}>{text}</div>
       {sub && <div style={{fontFamily: FONT.serif, fontStyle: 'italic', fontSize: size * 0.5, color: '#444', marginTop: 3}}>{sub}</div>}
+    </div>
+  );
+};
+
+type PrintHandT = {name: string; role?: string; note?: string; at: number; noteAt?: number; side?: 'left' | 'right'; size?: number; color?: string};
+
+/** one person's portrait: the name written by hand in white pencil on the wall beside the print, an arrow drawn
+ *  to the photo, role in small typewriter, an optional dated note in orange pencil written on its own spoken word.
+ *  It sits on the free side of the print (the print goes big on one side of the wall, w 620-700) and sizes itself
+ *  to the room left (producer, Pacific 0:46 2026-11-10: designed serif type beside the print "looks templated";
+ *  the handwritten note was the pick, the date in orange) */
+const PrintHand: React.FC<PrintHandT & {room: number}> = ({name, role, note, at, noteAt, side = 'right', size, color = '#e8915a', room}) => {
+  const cue = useCue();
+  const {frame} = useScene();
+  const sz = size ?? Math.max(84, Math.min(158, room / (name.length * 0.4)));
+  const p = prog(frame, cue(at), 16);
+  const pa = prog(frame, cue(at) + 12, 10);
+  const pr = prog(frame, cue(at) + 14, 10);
+  const pn = note ? prog(frame, cue(noteAt ?? at), 12) : 0;
+  const chalk = '#f4f1e8';
+  const right = side === 'right';
+  const wipe = (q: number) => `inset(-20% ${100 - q * 104}% -20% 0)`; // written on left to right
+  const sh = '0 2px 6px rgba(0,0,0,.6)';
+  const inset = sz * 0.7;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '24%',
+        ...(right ? {left: 'calc(100% + 96px)'} : {right: 'calc(100% + 96px)'}),
+        width: room,
+        transform: 'rotate(-3deg)',
+        transformOrigin: right ? 'left center' : 'right center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: right ? 'flex-start' : 'flex-end',
+        zIndex: Z_LABEL,
+      }}
+    >
+      <div style={{position: 'relative'}}>
+        <div style={{fontFamily: FONT.hand, fontSize: sz, lineHeight: 0.9, color: chalk, whiteSpace: 'nowrap', clipPath: wipe(p), textShadow: sh}}>{name}</div>
+        <svg width={150} height={130} viewBox="0 0 260 130" style={{position: 'absolute', top: sz * 0.78, ...(right ? {left: -70} : {right: -70, transform: 'scaleX(-1)'}), overflow: 'visible'}}>
+          <path d="M250 20 C 180 120, 90 130, 10 80" fill="none" stroke={chalk} strokeWidth={9} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
+          <path d="M44 62 L8 80 L40 108" fill="none" stroke={chalk} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" opacity={pa > 0.95 ? 1 : 0} />
+        </svg>
+      </div>
+      {role && (
+        <div style={{fontFamily: FONT.type, fontSize: Math.max(30, sz * 0.25), lineHeight: 1.35, color: chalk, opacity: 0.9 * pr, margin: `${sz * 0.25}px ${right ? 0 : inset}px 0 ${right ? inset : 0}px`, maxWidth: room - inset, whiteSpace: 'pre-line', textAlign: right ? 'left' : 'right', textShadow: sh}}>
+          {role}
+        </div>
+      )}
+      {note && (
+        <div style={{fontFamily: FONT.hand, fontSize: sz * 0.5, color, margin: `${sz * 0.14}px ${right ? 0 : inset}px 0 ${right ? inset : 0}px`, whiteSpace: 'nowrap', clipPath: wipe(pn), textShadow: sh}}>{note}</div>
+      )}
     </div>
   );
 };

@@ -50,7 +50,8 @@ props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (
 - **Sadat style, house version:** no title intro (start on the first word, on moving film); no `MapBlinds`
   red-line map, no white `Flash`, no light `Ribbon`, no `TitleCard`/`Epigraph`. Use **DocMap** for geography,
   **DocCard** for real documents (the quoted words marked as spoken), **Chart** for the script's numbers, and a
-  **NameStrip** on every named person on screen.
+  **NameStrip** on every named person on screen (one portrait alone on the wall: a big print on one side with
+  the name handwritten beside it, `PhotoPrint hand=`).
 - **Film burns:** 3–6 per video, at the big turns, only where the layer changes (film ↔ print/graphic), never
   film → film. Burn numbers 1, 4, 5, 6, 11, 12, 13.
 - **Sound:** narration only + the burns' projector sound. No synthesised SFX. Music only when the producer gives a

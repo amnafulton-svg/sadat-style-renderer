@@ -43,7 +43,7 @@ Moving between these three planes means something. Film → board says "now look
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
-| 7 | Annotations | `PhotoPrint names=`, `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
+| 7 | Annotations | `PhotoPrint hand=`, `PhotoPrint names=`, `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
 | 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember. **HOUSE:** `Highlight` (the red bar) only for a real quote from a person or document, in quote marks |
 | 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow drift over a board (scale 0.95-1.12, at most 3 % per second); prints never move on their own once they land |
 | 10 | Transition | `Enter` kinds + `BURNS` (`Main.tsx`) | Between scenes (sec. 5) |
@@ -58,6 +58,11 @@ Moving between these three planes means something. Film → board says "now look
 2. **Is a person, place or object named?** → `PhotoPrint` (real photo) with the person's name strip **on the spoken
    name** (every named person on screen gets one; `sub` = country or role), hung under that person's photo:
    `names={[{text: 'Col. Eli Lilly', sub: 'grandfather · founder', at: 359.62, fx: 0.79}]}`.
+   **One portrait of one person alone on the wall** → the print goes big on one side (w 620-700, x near 540 or
+   1380) and the name is written by hand beside it, on the spoken name; `role` = rank and post (two short lines),
+   `note` = the one date or fact the script says about them, written in orange on its own spoken word:
+   `<PhotoPrint src="s1_nagano.jpg" at={49.3} x={540} y={540} w={700} ... hand={{name: 'Osami Nagano', role:
+   'Fleet Admiral\nChief, Naval General Staff', note: 'until February 1944', at: 50.18, noteAt: 53.0}} />`.
 3. **Geography (journey, border, spread, territory)?** → `DocMap`. Not for biography lines ("born in X").
 4. **A document is quoted or named (a law, treaty, letter, headline)?** → `DocCard` with the real scan, the quoted
    words marked as they are spoken. **HOUSE:** the mark's `lines` come from `tools/docmark.py <scan> "the words"`
@@ -170,6 +175,13 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   NameStrip in a shot with a print, names running off the frame, into the black caption, into a label, far wider
   than the photo, or under the wrong print; `python tools/fixnames.py` moves the free ones (to the print named
   after the person, else the nearest). Free NameStrips stay for film and maps only.
+- **HOUSE: one portrait alone = a big print and a handwritten name.** A shot whose only picture is one person's
+  portrait does not leave a small print in the middle of an empty wall with a strip under it: the print fills one
+  side of the wall and `hand={{name, role, note, at, noteAt}}` writes the name in white pencil on the free side
+  (it places and sizes itself; arrow to the photo, role in small typewriter, the note in orange pencil), instead
+  of `names=`. Only what the script says goes in `role` and `note`. Two or more people, group photos, boards of
+  several prints and wide photos keep `names=` / FullPhoto as before (producer, Pacific 0:46 2026-11-10: "i like
+  the new portrait"; designed serif type beside it "looks templated", the handwriting was the pick).
 - **HOUSE: a print's caption sits under the print.** The black who/what/where tag of a print is the print's own
   `tag={{line1: 'A prescription', line2: 'Fairhaven Pharmacy, 9 Sept. 1899'}}` (optional `at`, default just after
   the print lands; `size`, default 38). PhotoPrint sticks it across its bottom-left edge, so it always sits under
