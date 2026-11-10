@@ -1,7 +1,6 @@
-// FilmLayer — archival footage, the reference's workhorse for CONCRETE statements (who did what, where).
-// Why it looks like this: the reference plays 4:3 newsreel full-frame (cropped top/bottom), desaturated,
-// with a heavy vignette and a soft blur on the frame edges, so 1940s film and 1990s video sit in one look
-// and the eye stays in the centre. `fit: "pad"` is the house alternative (whole 4:3 picture over a blurred copy).
+// FilmLayer — archival footage, the workhorse for CONCRETE statements (who did what, where).
+// HOUSE (producer, Pacific 2026-11-10): film plays as it was shot, in its own colour, sharp to the edges (FILM_LOOK).
+// `fit: "pad"` shows a whole 4:3 picture over a blurred copy of itself.
 import React from 'react';
 import {AbsoluteFill, Img, OffthreadVideo, interpolate, staticFile} from 'remotion';
 import {useScene} from '../lib/scene';
@@ -16,6 +15,12 @@ export const GRADE: Record<Grade, string> = {
   none: 'none',
 };
 
+/** film plays as it was shot: its own colour (colour film stays colour, black-and-white stays black-and-white),
+ *  a touch of contrast, no tint and no blurred, darkened edges (producer, Pacific 2026-11-10: colour Midway film
+ *  had been turned grey and sepia with soft edges; the clean version was the pick). `grade` is still accepted on
+ *  film so old timelines compile, but it no longer tints it. */
+export const FILM_LOOK = 'contrast(1.06) saturate(0.85)';
+
 export type FilmProps = {
   src: string; // file in public/footage
   start: number; // source in-point (s)
@@ -23,12 +28,12 @@ export type FilmProps = {
   focusY?: number; // 0..100 vertical crop position for fill (lower = crop more of the bottom, hides burned-in text)
   focusX?: number;
   zoom?: number; // extra scale on fill (e.g. to push past a pillarbox)
-  grade?: Grade;
+  grade?: Grade; // ignored on film (see FILM_LOOK); prints and photos still use it
   rate?: number;
   drift?: boolean; // very slow push, never a punch-in
 };
 
-export const Film: React.FC<FilmProps> = ({src, start, fit = 'fill', focusY = 50, focusX = 50, zoom = 1, grade = 'sepia', rate = 1, drift = true}) => {
+export const Film: React.FC<FilmProps> = ({src, start, fit = 'fill', focusY = 50, focusX = 50, zoom = 1, rate = 1, drift = true}) => {
   const {frame, durFrames} = useScene();
   const push = drift ? interpolate(frame, [0, durFrames], [1, 1.035]) : 1;
   const video = (style: React.CSSProperties) => (
@@ -44,9 +49,9 @@ export const Film: React.FC<FilmProps> = ({src, start, fit = 'fill', focusY = 50
     <AbsoluteFill style={{background: '#000', overflow: 'hidden'}}>
       {fit === 'pad' ? (
         <>
-          {video({width: '100%', height: '100%', objectFit: 'cover', filter: `${GRADE[grade]} blur(28px) brightness(0.45)`, transform: 'scale(1.15)'})}
+          {video({width: '100%', height: '100%', objectFit: 'cover', filter: `${FILM_LOOK} blur(28px) brightness(0.45)`, transform: 'scale(1.15)'})}
           <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', transform: `scale(${push})`}}>
-            {video({height: '100%', width: '100%', objectFit: 'contain', filter: GRADE[grade]})}
+            {video({height: '100%', width: '100%', objectFit: 'contain', filter: FILM_LOOK})}
           </AbsoluteFill>
         </>
       ) : (
@@ -55,12 +60,11 @@ export const Film: React.FC<FilmProps> = ({src, start, fit = 'fill', focusY = 50
           height: '100%',
           objectFit: 'cover',
           objectPosition: `${focusX}% ${focusY}%`,
-          filter: GRADE[grade],
+          filter: FILM_LOOK,
           transform: `scale(${push * zoom})`,
           transformOrigin: `${focusX}% ${focusY}%`,
         })
       )}
-      <EdgeSoftness />
     </AbsoluteFill>
   );
 };

@@ -193,7 +193,8 @@ python tools/cut.py _cache/<topic>/<file> <in> <dur> <topic>_<what> [--crop W:H:
 - Scenes `{id, from, to, enter, why, el}` in narration seconds, tiled with no gaps (each `from` = previous `to`),
   last `to: END`. `END` = last word end + ~2 s. Start each scene on the first word of its beat (or in the pause before it).
 - `why` = the line it covers + why this picture. It keeps the edit honest.
-- Film: `<F src="x.mp4" start={s} grade="bw|sepia|warm|blue" />` (optional `focusY`, `rate`).
+- Film: `<F src="x.mp4" start={s} />` (optional `focusY`, `rate`). Film plays in its own colour, no `grade` on film
+  (`grade="bw|sepia|warm|blue"` is for prints and photos).
 - Boards: `<ConcreteWall>` or `<Paper>` holding `PhotoPrint`s that land on their words (`at`), with `NameStrip`,
   `RedCircle`, `DateTag`, `BlackTag` inside or beside them, and optionally a `Camera keys=[…]` drift (scale 0.95-1.12, at most 3 % per second: never a zoom into a detail;
   the Great Plains pushes to 1.25-2.1x read as a "weird zoom", producer 2026-10-21).

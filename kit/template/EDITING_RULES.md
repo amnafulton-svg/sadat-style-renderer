@@ -77,6 +77,9 @@ Moving between these three planes means something. Film → board says "now look
    narration really is a chain, never as filler.
 5. **Numbers the script gives?** → `Chart` (line or bars) landing on the spoken figures, or `BigSerif` for one number
    **over film or a print** of what the number counts (bank crowds under a bank count, bread lines under jobless %).
+   Two or three figures to compare (`type: 'bars'`, 2-3 rows) play as big numbers that fill the frame, each
+   counting up onto its spoken word with a bar to scale under it: `Chart` does this by itself, write the rows
+   as usual (`highlight: true` on a row makes that one red).
 6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`
    on it). `ListWords` / `KraftNote` only on top of a picture.
 7. **A quote or the argument itself** → film or real photos of what the line is about (its era, its people, its
@@ -138,7 +141,10 @@ A transition used for decoration means nothing, so most changes are hard cuts.
 
 ## 6. Look
 
-- **Film grade:** `bw` for ominous or older material, `sepia`/`warm` for neutral history, `blue` for cold/modern.
+- **HOUSE: film plays as it was shot.** Colour film stays colour, black-and-white stays black-and-white; `F` adds no
+  tint and no blurred, darkened edges, so leave `grade` off film (it is ignored there). `grade` (`bw`, `sepia`,
+  `warm`, `blue`) is for prints and photos only (producer, Pacific 2026-11-10: colour Midway film had been turned
+  grey with soft edges; the clean version was the pick).
 - **Type:** Playfair for numbers, Libre Caslon for phrases, quotes and name strips, Bebas for ghost titles,
   Special Elite for tape labels. Crimson highlight bars, red marker circles.
 - **Prints:** white border, small tilt (±1–4°), drop shadow, never stretched.

@@ -3,8 +3,9 @@
 // Also the data chart (real figures as a line / bars, each landing on its spoken word).
 // All take narration seconds, like every other layer here, and convert to the scene's local timing.
 import React from 'react';
-import {nf} from '../lib/core';
-import {useScene} from '../lib/scene';
+import {C, FONT, nf, prog} from '../lib/core';
+import {useCue, useScene} from '../lib/scene';
+import {ConcreteWall} from './Backgrounds';
 import {DocumentaryMap} from '../vendor/DocumentaryMap';
 import {DocumentCard} from '../vendor/DocumentCard';
 import {DataChart} from '../vendor/DataChart';
@@ -57,8 +58,58 @@ export const DocCard: React.FC<{photo: string; aspect: number; at: number; sourc
   );
 };
 
+/** two or three figures to compare: each number fills the frame and counts up onto its spoken word, a bar to scale
+ *  under it (producer, Pacific 5:26 2026-11-10: two thin bars in a mostly empty chart; the big numbers were the pick).
+ *  Chart switches to this by itself for bars/columns of 2-3 plain rows. */
+const BigNumbers: React.FC<{chart: ArchiveChart}> = ({chart}) => {
+  const cue = useCue();
+  const {frame} = useScene();
+  const rows = chart.rows ?? [];
+  const n = rows.length;
+  const max = Math.max(...rows.map((r) => Math.abs(r.amount)), 1e-9);
+  const cream = '#f2ead8';
+  const flagged = rows.some((r) => r.highlight);
+  const tone = (i: number) => (flagged ? (rows[i].highlight ? '#d2362f' : cream) : [cream, '#d2362f', '#b9b1a0'][i]);
+  const f = chart.format ?? {};
+  const show = (v: number) =>
+    `${f.prefix ?? ''}${v.toLocaleString('en-US', {minimumFractionDigits: f.decimals ?? 0, maximumFractionDigits: f.decimals ?? 0})}${f.suffix ?? ''}`;
+  const pitch = 830 / n;
+  const base = n === 2 ? 300 : 190;
+  return (
+    <ConcreteWall dim={0.55}>
+      <div style={{position: 'absolute', left: 120, top: 64, zIndex: 40}}>
+        {chart.kicker && <div style={{fontFamily: FONT.cond, fontSize: 30, letterSpacing: 6, color: C.red}}>{chart.kicker.toUpperCase()}</div>}
+        <div style={{fontFamily: FONT.cond, fontSize: 58, letterSpacing: 3, color: cream, marginTop: 4}}>{chart.title.toUpperCase()}</div>
+      </div>
+      {chart.source && (
+        <div style={{position: 'absolute', right: 120, top: 76, maxWidth: 520, textAlign: 'right', fontFamily: FONT.cond, fontSize: 24, letterSpacing: 3, color: cream, opacity: 0.55, zIndex: 40}}>
+          SOURCE: {chart.source}
+        </div>
+      )}
+      {rows.map((r, i) => {
+        const p = prog(frame, cue(r.at) - 8, 14);
+        const end = r.text ?? show(r.amount);
+        const txt = p >= 1 ? end : show(r.amount * p);
+        const size = Math.min(base, 1050 / (Math.max(end.length, 3) * 0.5));
+        return (
+          <div key={i} style={{position: 'absolute', left: 120, right: 120, top: 215 + i * pitch, opacity: prog(frame, cue(r.at) - 8, 4), zIndex: 40}}>
+            <div style={{display: 'flex', alignItems: 'baseline', gap: 44}}>
+              <div style={{fontFamily: FONT.didone, fontWeight: 700, fontSize: size, lineHeight: 1, fontVariantNumeric: 'lining-nums', fontFeatureSettings: '"lnum" 1', color: tone(i), letterSpacing: -size / 50, whiteSpace: 'nowrap', textShadow: '0 8px 40px rgba(0,0,0,.8)'}}>{txt}</div>
+              <div style={{fontFamily: FONT.cond, fontSize: n === 2 ? 62 : 48, lineHeight: 1.1, letterSpacing: 5, color: cream}}>
+                {r.label.toUpperCase()}
+                {r.sub && <div style={{fontSize: n === 2 ? 34 : 28, letterSpacing: 3, opacity: 0.65, marginTop: 6}}>{r.sub}</div>}
+              </div>
+            </div>
+            <div style={{height: n === 2 ? 34 : 24, marginTop: n === 2 ? 22 : 14, width: `${Math.max(0.6, (Math.abs(r.amount) / max) * 100 * p)}%`, background: tone(i), boxShadow: '0 6px 20px rgba(0,0,0,.6)'}} />
+          </div>
+        );
+      })}
+    </ConcreteWall>
+  );
+};
+
 /** the house data chart (DataChart.tsx); appear / until / reveal / markers / callouts / row times in narration seconds */
-export const Chart: React.FC<{chart: ArchiveChart}> = ({chart}) => {
+const PlainChart: React.FC<{chart: ArchiveChart}> = ({chart}) => {
   const {frame, startFrame, durFrames} = useScene();
   const rel = (s: number) => (nf(s) - startFrame) / 25;
   const opt = (s?: number) => (s === undefined ? undefined : rel(s));
@@ -73,4 +124,10 @@ export const Chart: React.FC<{chart: ArchiveChart}> = ({chart}) => {
     badge: chart.badge && {...chart.badge, at: rel(chart.badge.at)},
   };
   return <DataChart chart={local} frame={frame} durationInFrames={durFrames} />;
+};
+
+export const Chart: React.FC<{chart: ArchiveChart}> = ({chart}) => {
+  const rows = chart.rows ?? [];
+  const big = chart.type !== 'line' && (rows.length === 2 || rows.length === 3) && !rows.some((r) => r.steps?.length || r.segments?.length) && !chart.badge;
+  return big ? <BigNumbers chart={chart} /> : <PlainChart chart={chart} />;
 };
