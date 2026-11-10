@@ -51,7 +51,8 @@ props are in `src/layers/*.tsx`; map/chart spec types in `src/vendor/types.ts` (
   red-line map, no white `Flash`, no light `Ribbon`, no `TitleCard`/`Epigraph`. Use **DocMap** for geography,
   **DocCard** for real documents (the quoted words marked as spoken), **Chart** for the script's numbers, and a
   **NameStrip** on every named person on screen (one portrait alone on the wall: a big print on one side with
-  the name handwritten beside it, `PhotoPrint hand=`).
+  the name handwritten beside it, `PhotoPrint hand=`). A full-screen photo of the one thing the line names gets its name
+  written on the picture by hand, with an arrow or ring (`HandNote`), instead of a black tag in the corner.
 - **Film burns:** 3–6 per video, at the big turns, only where the layer changes (film ↔ print/graphic), never
   film → film. Burn numbers 1, 4, 5, 6, 11, 12, 13.
 - **Sound:** narration only + the burns' projector sound. No synthesised SFX. Music only when the producer gives a

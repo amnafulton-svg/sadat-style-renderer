@@ -43,7 +43,7 @@ Moving between these three planes means something. Film → board says "now look
 | 5 | Chart | `Chart` (`layers/Evidence.tsx`) | **HOUSE:** real figures said in the script, each landing on its spoken number |
 | 6 | Prints | `PhotoPrint` (`layers/Print.tsx`) | A named person, place or object. A print can hold moving film (`film` prop) |
 | 6b | Full-screen photo | `FullPhoto` (`layers/Film.tsx`) | **HOUSE:** a shot with one photo that holds up full screen: fills the frame, slow zoom in |
-| 7 | Annotations | `PhotoPrint hand=`, `PhotoPrint names=`, `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
+| 7 | Annotations | `PhotoPrint hand=`, `HandNote`, `PhotoPrint names=`, `NameStrip`, `RedCircle`, `BlackTag`, `DateTag`, `KraftNote` | Pointing at the detail the narration names |
 | 8 | Type | `BigSerif`, `Highlight`, `QuoteText`, `ListWords`, `GhostTitle`, `LabelTape` (`layers/Type.tsx`) | The one word to remember. **HOUSE:** `Highlight` (the red bar) only for a real quote from a person or document, in quote marks |
 | 9 | Camera | `Camera` (`layers/Stage.tsx`) | Slow drift over a board (scale 0.95-1.12, at most 3 % per second); prints never move on their own once they land |
 | 10 | Transition | `Enter` kinds + `BURNS` (`Main.tsx`) | Between scenes (sec. 5) |
@@ -196,6 +196,14 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   on a caption that would run off the frame (raise the print or make it smaller). `python tools/fixtags.py`
   moves every free tag onto its print in one go. Free BlackTags stay for
   FullPhoto, film and boards of several prints, placed under the picture they name.
+- **HOUSE: on a full-screen photo, write the note on the picture.** When a `FullPhoto` shows the one thing the
+  line names, `HandNote` writes its name by hand on a quiet part of the picture at the spoken word, draws an arrow
+  to it or an orange ring around it, and adds the place and date in orange:
+  `<HandNote x={150} y={250} text="USS Quincy" sub="Savo Island, 9 Aug. 1942" at={307.5} subAt={308.7} size={150}
+  ring={[910, 640, 330, 95]} />`, or with an arrow `from={[560, 310]} to={[720, 440]}`. White pencil by default,
+  `ink` for a bright sky. Look at a still: the words sit on a calm area, the arrow tip or ring is on the thing.
+  One or two short notes a shot; the black tag stays for busy pictures with no calm area (producer, Pacific
+  2026-11-10: the handwritten note was picked over the black tag in the corner).
 - **HOUSE: one good photo plays full screen.** When a shot's only picture is one photo that is wide (aspect
   >= 1.3) and big enough (enlarged at most 1.6x to fill 1920x1080), it is a `FullPhoto` (fills the frame, slow
   zoom in towards `focusX`/`focusY`), not a `PhotoPrint` on a wall: one print on a wall shot after shot feels

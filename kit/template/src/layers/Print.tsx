@@ -288,6 +288,61 @@ export const RedCircle: React.FC<{at: number; cx: number; cy: number; rx: number
   );
 };
 
+/** handwritten note on a full-screen photo or film: the words are written on at the spoken moment, an arrow is drawn
+ *  from them to the thing, an orange ring can close around it, and an orange second line (place, date) follows
+ *  (producer, Pacific 5:07 2026-11-10: "USS Quincy" written on the photo with the ship ringed, picked over the black
+ *  tag in the corner). White pencil on dark pictures; `ink` writes in dark ink for a bright sky or wall.
+ *  x/y = where the words start, from/to = arrow start and tip, ring = [cx, cy, rx, ry], all in frame pixels. */
+export const HandNote: React.FC<{
+  x: number; y: number; text: string; sub?: string; at: number; subAt?: number; size?: number; rot?: number;
+  from?: [number, number]; to?: [number, number]; bend?: number; ring?: [number, number, number, number]; ink?: boolean; color?: string;
+}> = ({x, y, text, sub, at, subAt, size = 120, rot = -3, from, to, bend = 50, ring, ink, color = '#e8915a'}) => {
+  const cue = useCue();
+  const {frame} = useScene();
+  const p = prog(frame, cue(at), 14);
+  const pa = prog(frame, cue(at) + 10, 9);
+  const pr = prog(frame, cue(at) + 16, 12);
+  const ps = sub ? prog(frame, cue(subAt ?? at), 12) : 0;
+  const pen = ink ? '#14110d' : '#f4f1e8';
+  const sh = ink ? '0 0 14px rgba(255,255,255,.55)' : '0 2px 5px rgba(0,0,0,.85), 0 0 22px rgba(0,0,0,.6)';
+  const w = ink ? 7 : 6;
+  let arrow: React.ReactNode = null;
+  if (from && to) {
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const cx = (from[0] + to[0]) / 2 - (dy / len) * bend;
+    const cy = (from[1] + to[1]) / 2 + (dx / len) * bend;
+    const a = Math.atan2(to[1] - cy, to[0] - cx);
+    const h = 30;
+    arrow = (
+      <>
+        <path d={`M${from[0]} ${from[1]} Q ${cx} ${cy} ${to[0]} ${to[1]}`} fill="none" stroke={pen} strokeWidth={w} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
+        <path
+          d={`M${to[0] - h * Math.cos(a - 0.5)} ${to[1] - h * Math.sin(a - 0.5)} L${to[0]} ${to[1]} L${to[0] - h * Math.cos(a + 0.5)} ${to[1] - h * Math.sin(a + 0.5)}`}
+          fill="none" stroke={pen} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" opacity={pa > 0.95 ? 1 : 0}
+        />
+      </>
+    );
+  }
+  return (
+    <>
+      <svg width={1920} height={1080} style={{position: 'absolute', left: 0, top: 0, zIndex: Z_LABEL, overflow: 'visible', filter: ink ? 'none' : 'drop-shadow(0 2px 4px rgba(0,0,0,.8))'}}>
+        {arrow}
+        {ring ? (
+          <ellipse cx={ring[0]} cy={ring[1]} rx={ring[2]} ry={ring[3]} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pr} transform={`rotate(-4 ${ring[0]} ${ring[1]})`} />
+        ) : null}
+      </svg>
+      <div style={{position: 'absolute', left: x, top: y, zIndex: Z_LABEL, transform: `rotate(${rot}deg)`, transformOrigin: '0 50%'}}>
+        <div style={{fontFamily: FONT.hand, fontSize: size, lineHeight: 0.9, color: pen, whiteSpace: 'nowrap', clipPath: `inset(-20% ${100 - p * 104}% -20% 0)`, textShadow: sh}}>{text}</div>
+        {sub ? (
+          <div style={{fontFamily: FONT.hand, fontSize: size * 0.62, color, marginTop: 6, marginLeft: 12, whiteSpace: 'nowrap', clipPath: `inset(-20% ${100 - ps * 104}% -20% 0)`, textShadow: sh}}>{sub}</div>
+        ) : null}
+      </div>
+    </>
+  );
+};
+
 /** small black label: white serif line + optional italic second line (name/role, place/year) */
 export const BlackTag: React.FC<{at: number; x: number; y: number; line1: string; line2?: string; size?: number; align?: 'left' | 'right'}> = ({
   at,
