@@ -1,5 +1,5 @@
 // House evidence layers (vendored from archive-remotion-factory/renderer): the documentary map (NASA terrain,
-// 3D tilt) and the document card (real scan on graph paper, the quote marked on its word).
+// 3D tilt) and the document card (real scan, clean and straight on graph paper, the quote highlighted in yellow as it is spoken).
 // Also the data chart (real figures as a line / bars, each landing on its spoken word).
 // All take narration seconds, like every other layer here, and convert to the scene's local timing.
 import React from 'react';

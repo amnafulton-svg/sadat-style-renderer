@@ -67,6 +67,9 @@ Moving between these three planes means something. Film → board says "now look
 4. **A document is quoted or named (a law, treaty, letter, headline)?** → `DocCard` with the real scan, the quoted
    words marked as they are spoken. **HOUSE:** the mark's `lines` come from `tools/docmark.py <scan> "the words"`
    (OCR), never a box guessed by eye; validate errors on a mark that is not on printed lines.
+   The card shows the clean page straight on the graph paper, rising in once and holding still, nothing dimmed, a
+   yellow highlighter running over the quoted words as they are spoken (producer, 2026-11-11: the dimmed page with a
+   lit band looked messy). Mark only the words the narrator quotes, with `until` at the end of the quote.
 4b. **The press reported it (a news story, a study's coverage, "the papers wrote")?** → `HeadlineCard`: the real
    article page from `node tools/headline.mjs <url> <name> "the words"` (its boxes, never guessed), the camera on the
    headline, then on the line being read, highlighted as it is spoken. **HOUSE (producer, 2026-11-05):** no count:
