@@ -197,7 +197,7 @@ The section workflow found better film than one chat because it planned every se
   stills every scene mid-scene plus the end frame of every DocMap, Chart and DocCard, 12 per board with the words
   spoken over each tile, in `_review/`. Open every board. Per tile: does the picture show what its words say at that
   moment (the thing named, the right era/place/person, and nothing in the frame that fights the line: people doing
-  something else, a different kind of programme), nothing clipped, labels readable and not colliding, 4:3 film
+  something else, a different kind of programme), nothing clipped, labels readable and not colliding, every red ring (its own 'ring close-up' tile) on the thing its words name with no caption over it, 4:3 film
   padded, strips on the right person. Also across tiles: the same shot held over several sentences, the same crowd,
   room or film shown twice. Fix every flagged tile with small Edits (a wrong shot: search again with
   `tools/source.py`, open only the sheet you take the new in-point from, or use the best real photo), then re-board

@@ -342,16 +342,19 @@ export const RedCircle: React.FC<{at: number; cx: number; cy: number; rx: number
   const cue = useCue();
   const {frame} = useScene();
   const p = prog(frame, cue(at), 12);
-  // slightly overshooting, wobbly loop like a real marker stroke
-  const pts = Array.from({length: 61}, (_, i) => {
-    const a = (i / 60) * Math.PI * 2.15 - Math.PI / 2;
-    const wob = 1 + 0.05 * Math.sin(i * 0.9) + 0.03 * (i / 60);
-    return `${cx + Math.cos(a) * rx * wob},${cy + Math.sin(a) * ry * wob}`;
+  // one clean pen stroke: a smooth loop that opens out a little and runs just past its start. No wobble along the
+  // line (producer, Japan oil 4:30, 2026-11-15: "doesnt look clean it always looks like it has little cercles")
+  const N = 120;
+  const pts = Array.from({length: N + 1}, (_, i) => {
+    const t = i / N;
+    const a = t * Math.PI * 2.14 - Math.PI * 0.62;
+    const r = 0.965 + 0.07 * t + 0.022 * Math.sin(a + 0.8);
+    return `${(cx + Math.cos(a) * rx * r).toFixed(1)},${(cy + Math.sin(a) * ry * r).toFixed(1)}`;
   });
-  const len = Math.PI * (rx + ry) * 1.1;
+  const len = 1;
   return (
     <svg style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none'}}>
-      <polyline
+      <polyline pathLength={1}
         points={pts.join(' ')}
         fill="none"
         stroke={C.red}

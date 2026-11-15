@@ -6,6 +6,11 @@ One still per scene (mid-scene) plus the end frame of every DocMap, Chart and Do
 tools/stills.mjs, then tiled 12 per board with the scene id, time and the narration under each tile. Prints the
 board paths.
 
+Every RedCircle gets its own tile too: the frame just after the ring is drawn, cut close around the ring, with the
+words spoken as it lands (producer, Japan oil 4:30, 2026-11-15: two rings on a battle map sat on blank coast next to
+the labels they were meant for, "i dont undrenstand why it circled that part of the image?"; rings are placed by
+numbers and a whole-frame tile is too small to show a miss).
+
 Why (producer, 2026-10-20): after 10-17 the editors stopped looking at pictures themselves (look.py described them
 instead) and the cuts stopped feeling "synced": a screen model passes a well-made shot that is the wrong shot for the
 words. Picture-to-words judgement is the editor's job again; these boards make that cheap (one image = 12 scenes
@@ -48,8 +53,35 @@ def scenes():
             continue
         out.append({'id': m.group(1), 'from': float(m.group(2)),
                     'to': None if m.group(3) == 'END' else float(m.group(3)),
-                    'end': any(k in b for k in END_FRAME)})
+                    'end': any(k in b for k in END_FRAME),
+                    'rings': [float(x) for x in re.findall(r'<RedCircle\b[^>]*?\bat=\{([\d.]+)\}', b)]})
     return out
+
+
+def ring_crop(im):
+    """the 16:9 window of a frame around its red marker ring (the whole frame if no marker red is found)"""
+    W, H = im.size
+    sm = im.resize((W // 4, H // 4))
+    px = sm.load()
+    xs, ys = [], []
+    for y in range(sm.size[1]):
+        for x in range(sm.size[0]):
+            r, g, b = px[x, y]
+            if r > 150 and g < 85 and b < 90 and r - g > 90:
+                xs.append(x * 4)
+                ys.append(y * 4)
+    if len(xs) < 12:
+        return im
+    xs.sort()
+    ys.sort()
+    k = len(xs) // 50  # a stray red speck does not widen the window
+    x0, x1, y0, y1 = xs[k], xs[-1 - k], ys[k], ys[-1 - k]
+    w = max(640, (x1 - x0) * 2.4, (y1 - y0) * 2.4 * 16 / 9)
+    w = min(w, W)
+    h = w * 9 / 16
+    cx = min(max((x0 + x1) / 2, w / 2), W - w / 2)
+    cy = min(max((y0 + y1) / 2, h / 2), H - h / 2)
+    return im.crop((int(cx - w / 2), int(cy - h / 2), int(cx + w / 2), int(cy + h / 2)))
 
 
 def mmss(t):
@@ -72,6 +104,8 @@ def main():
         shots.append(((fr + to) / 2, sc['id'], 'mid', fr, to))
         if sc['end'] and to - fr > 1.5:
             shots.append((to - 0.3, sc['id'], 'end frame', fr, to))
+        for at in sc['rings']:
+            shots.append((min(at + 0.9, to - 0.1), sc['id'], 'ring close-up', max(fr, at - 1.5), min(to, at + 2)))
     # each leader's speech insert gets a tile too (stills.mjs token sp<k>+<sec>: seconds into speech k)
     spf = ROOT / 'src/lib/speeches.json'
     for k, sp in enumerate(sorted(json.loads(spf.read_text(encoding='utf8')) if spf.exists() else [],
@@ -101,7 +135,8 @@ def main():
         dr = ImageDraw.Draw(im)
         for i, ((t, sid, label, fr, to), f) in enumerate(chunk):
             x, y = (i % COLS) * (TW + 8), (i // COLS) * (TH + CAP + 8)
-            th = Image.open(f).convert('RGB').resize((TW, TH))
+            th = Image.open(f).convert('RGB')
+            th = (ring_crop(th) if label == 'ring close-up' else th).resize((TW, TH))
             im.paste(th, (x, y))
             if fr == to:  # a speech tile: who speaks, not the narration
                 sp = next(x for x in json.loads(spf.read_text(encoding='utf8')) if x['at'] == fr)

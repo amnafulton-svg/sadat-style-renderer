@@ -154,6 +154,7 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   Special Elite for tape labels. Crimson highlight bars, red marker circles.
 - **Prints:** white border, small tilt (±1–4°), drop shadow, never stretched.
 - **HOUSE:** no subtitles.
+- `RedCircle`: its numbers are a guess until you see them. `tools/board.py` gives every ring its own close-up tile with the words spoken as it lands: the ring sits on the thing those words name (the label, the face), and no caption covers it. On a print the ring is in the print's own px, and the print's black caption covers its bottom-left corner.
 - Prints that arrive one after another, 3 s or more apart: give each its final place as always. The kit keeps the ones already on the wall centred and slides them aside as the next flies in (labels and rings on a print travel with it), so the wall never waits half empty.
 - A big typewriter line beside a print stays on clear wall, never across the print's edge (the line is wide):
   `python tools/fixfit.py` moves or shrinks the ones that touch; validate errors on any left. Run it before fixink.
