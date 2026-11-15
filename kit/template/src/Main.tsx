@@ -4,7 +4,8 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame} from 'remotion';
 import {nf, sf} from './lib/core';
-import {SceneProvider} from './lib/scene';
+import {SceneProvider, StageCtx} from './lib/scene';
+import {stagePlan} from './layers/Print';
 import {Enter, OVERLAP} from './transitions';
 import {FilmBurnOverlay, filmBurnTiming} from './vendor/FilmBurn';
 import {Dust, Grain, Vignette} from './overlays';
@@ -13,13 +14,16 @@ import {SpeechInsert} from './layers/Speech';
 import {SPEECHES, SPEECH_FRAMES, speechFrames} from './lib/speeches';
 import {BURNS, END, SCENES, SFX} from './timeline/video';
 
+// prints that arrive one after another wait centred, then slide to their places (layers/Print.tsx stagePlan)
+const STAGED = SCENES.map((s) => stagePlan(s.el));
+
 export const TOTAL_FRAMES = nf(END) + SPEECH_FRAMES;
 
 export const Story: React.FC = () => {
   const fadeOut = nf(END) - sf(2.2);
   return (
     <AbsoluteFill style={{background: '#000'}}>
-      {SCENES.map((s) => {
+      {SCENES.map((s, si) => {
         const start = nf(s.from) - OVERLAP[s.enter];
         const dur = nf(s.to) - start;
         return (
@@ -28,7 +32,7 @@ export const Story: React.FC = () => {
               {/* one stacking context per scene: its labels (zIndex) stay above its own prints but never above the
                   next scene while a dissolve/torn/whip overlaps them (cannabis 2:12: "Spasms eased." hung over the paper) */}
               <AbsoluteFill style={{isolation: 'isolate'}}>
-                <Enter kind={s.enter}>{s.el}</Enter>
+                <StageCtx.Provider value={STAGED[si].stage}><Enter kind={s.enter}>{STAGED[si].el}</Enter></StageCtx.Provider>
               </AbsoluteFill>
             </SceneProvider>
           </Sequence>

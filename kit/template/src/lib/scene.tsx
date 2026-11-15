@@ -18,6 +18,11 @@ export const useCue = () => {
   return (narrSec: number) => nf(narrSec) - startFrame;
 };
 
+/** where each print of the scene waits before the later prints arrive: key `src|at` -> [{until, dx}] (layers/Print.tsx stagePlan) */
+export type StageSteps = {until: number; dx: number}[];
+export type Stage = Record<string, StageSteps>;
+export const StageCtx = createContext<Stage>({});
+
 export const useScene = () => {
   const frame = useCurrentFrame();
   const ctx = useContext(SceneCtx);

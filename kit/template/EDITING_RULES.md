@@ -154,6 +154,7 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   Special Elite for tape labels. Crimson highlight bars, red marker circles.
 - **Prints:** white border, small tilt (±1–4°), drop shadow, never stretched.
 - **HOUSE:** no subtitles.
+- Prints that arrive one after another: give each its final place as always. The kit keeps the ones already on the wall centred and slides them aside as the next flies in (labels and rings on a print travel with it), so the wall never waits half empty.
 - A big typewriter line beside a print stays on clear wall, never across the print's edge (the line is wide):
   `python tools/fixfit.py` moves or shrinks the ones that touch; validate errors on any left. Run it before fixink.
 - **HOUSE: text must read against what is under it.** `BigSerif`/`ListWords` default to cream: on `Paper`, light

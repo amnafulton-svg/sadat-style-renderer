@@ -8,13 +8,13 @@
 // BlackTag / DateTag: small black label (who / when), the reference's date & name tags.
 import React from 'react';
 import {Img, OffthreadVideo, interpolate, staticFile} from 'remotion';
-import {C, FONT, easeOut, prog, rand} from '../lib/core';
+import {C, FONT, easeInOut, easeOut, prog, rand} from '../lib/core';
 import {HAND_K} from '../lib/core';
 import INK_AUTO from '../lib/ink.json';
 // tools/fixink.py measures the picture behind each plain line / note and writes the colour that shows there
 const inkAuto = (text: string, at: number) => (INK_AUTO as Record<string, {ink?: boolean; arrow?: string; color?: string; soft?: string}>)[`${text}|${at}`];
 
-import {useCue, useScene} from '../lib/scene';
+import {Stage, StageCtx, StageSteps, useCue, useScene} from '../lib/scene';
 import {GRADE, Grade} from './Film';
 import {Z_LABEL, safeY} from './Type';
 
@@ -49,6 +49,8 @@ export const PhotoPrint: React.FC<{
   const r = rot + (from === 'fade' ? 0 : (1 - p) * (rand(x + y) > 0.5 ? 9 : -9));
   const opacity = from === 'fade' ? p : frame < start ? 0 : 1;
   const d = interpolate(frame, [0, durFrames], [0, drift]);
+  // waits in the middle of the wall, and is pushed to its own place as each later print flies in (stagePlan)
+  const sx = stageX(React.useContext(StageCtx)[`${src}|${at}`], frame, cue);
   return (
     <div
       style={{
@@ -58,7 +60,7 @@ export const PhotoPrint: React.FC<{
         left: x - w / 2,
         top: y,
         width: w,
-        transform: `translate(${dx + d * 0.6}px, ${dy - d * 0.3}px) translateY(-50%) rotate(${r}deg) scale(${1 + (1 - p) * 0.06})`,
+        transform: `translate(${dx + sx + d * 0.6}px, ${dy - d * 0.3}px) translateY(-50%) rotate(${r}deg) scale(${1 + (1 - p) * 0.06})`,
         opacity,
         background: '#f1ece0',
         padding: border,
@@ -109,6 +111,77 @@ export const PhotoPrint: React.FC<{
       {hand && <PrintHand {...hand} side={hand.side ?? (x < 960 ? 'right' : 'left')} room={((hand.side ?? (x < 960 ? 'right' : 'left')) === 'right' ? 1920 - (x + w / 2) : x - w / 2) - 150} />}
     </div>
   );
+};
+
+/** px a print stands off its own place right now: centred with the prints already on the wall, home once all are in */
+const stageX = (st: StageSteps | undefined, frame: number, cue: (s: number) => number) =>
+  (st ?? []).reduce((v, s, i, a) => v + ((a[i + 1]?.dx ?? 0) - s.dx) * prog(frame, cue(s.until) - 9, 12, easeInOut), st?.[0]?.dx ?? 0);
+
+/** a label, ring or note that belongs to a waiting print travels with it */
+const StageShift: React.FC<{st: StageSteps; children: React.ReactNode}> = ({st, children}) => {
+  const cue = useCue();
+  const {frame} = useScene();
+  return <div style={{position: 'absolute', inset: 0, zIndex: Z_LABEL, pointerEvents: 'none', transform: `translateX(${stageX(st, frame, cue)}px)`}}>{children}</div>;
+};
+
+/** HOUSE (producer, Japan oil 22:13, 2026-11-15): prints that arrive one after another do not leave half the wall
+ *  empty while the first one waits - "the image should be in the middle and after the second image is shown it
+ *  should be pushed to the left". Reads the scene's element tree: the prints on the wall so far sit centred as a
+ *  group, and slide to the places the editor gave them as the next one flies in; what is placed on or under a
+ *  waiting print (a label, a ring) travels with it. Left alone when the arrivals are under 1.5 s apart, when a
+ *  print carries a handwritten name beside it, or when something else already stands on the wall the print would
+ *  wait on. */
+export const stagePlan = (el: React.ReactNode): {stage: Stage; el: React.ReactNode} => {
+  type P = {src: string; at: number; x: number; y: number; w: number; hand?: unknown};
+  type O = {node: React.ReactElement; x: number; y: number; at: number};
+  const none = {stage: {}, el};
+  const prints: P[] = [];
+  const others: O[] = [];
+  const walk = (n: React.ReactNode) =>
+    React.Children.forEach(n, (c) => {
+      if (!React.isValidElement(c)) return;
+      const p = c.props as Record<string, unknown>;
+      if (c.type === PhotoPrint) return void prints.push(p as unknown as P);
+      const x = p.x ?? p.cx;
+      const y = p.y ?? p.cy;
+      if (typeof x === 'number' && typeof y === 'number') others.push({node: c, x, y, at: typeof p.at === 'number' ? p.at : 0});
+      if (typeof p.children !== 'function') walk(p.children as React.ReactNode);
+    });
+  walk(el);
+  if (prints.length < 2 || prints.some((p) => p.hand || ![p.x, p.y, p.w, p.at].every((v) => typeof v === 'number'))) return none;
+  const groups: P[][] = [];
+  for (const p of [...prints].sort((a, b) => a.at - b.at)) {
+    const g = groups[groups.length - 1];
+    if (g && p.at - g[0].at < 1.5) g.push(p);
+    else groups.push([p]);
+  }
+  if (groups.length < 2) return none;
+  const last = groups[groups.length - 1][0].at;
+  const stage: Stage = {};
+  const ride = new Map<React.ReactElement, string>(); // a label / ring -> the print it stands on
+  for (let k = 0; k < groups.length - 1; k++) {
+    const on = groups.slice(0, k + 1).flat();
+    const dx = Math.round(960 - (Math.min(...on.map((p) => p.x - p.w / 2)) + Math.max(...on.map((p) => p.x + p.w / 2))) / 2);
+    if (Math.abs(dx) < 40) return none;
+    for (const o of others) {
+      if (o.at >= last - 0.3 || Math.abs(o.x - 960) < 40) continue; // arrives with the finished layout / a line centred on the screen
+      const near = (p: P) => Math.abs(o.y - p.y) < p.w * 0.62 + 100;
+      const own = on.find((p) => near(p) && Math.abs(o.x - p.x) < p.w / 2 + 60);
+      if (own) ride.set(o.node, `${own.src}|${own.at}`);
+      else if (on.some((p) => near(p) && Math.abs(o.x - (p.x + dx)) < p.w / 2 + 60)) return none; // stands where the print would wait
+    }
+    for (const p of on) (stage[`${p.src}|${p.at}`] ??= []).push({until: groups[k + 1][0].at, dx});
+  }
+  if (!ride.size) return {stage, el};
+  const rebuild = (n: React.ReactNode): React.ReactNode =>
+    React.Children.map(n, (c) => {
+      if (!React.isValidElement(c) || c.type === PhotoPrint) return c;
+      const key = ride.get(c);
+      if (key) return <StageShift st={stage[key]}>{c}</StageShift>;
+      const ch = (c.props as {children?: React.ReactNode}).children;
+      return ch && typeof ch !== 'function' ? React.cloneElement(c, {}, rebuild(ch)) : c;
+    });
+  return {stage, el: rebuild(el)};
 };
 
 type PrintNameT = {text: string; sub?: string; at: number; fx?: number; fy?: number; rot?: number; size?: number}; // fx: where the person stands (0-1), only orders the row
