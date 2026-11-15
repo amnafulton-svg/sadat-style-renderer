@@ -168,7 +168,7 @@ export const stagePlan = (el: React.ReactNode): {stage: Stage; el: React.ReactNo
       const near = (p: P) => Math.abs(o.y - p.y) < p.w * 0.62 + 100;
       const own = on.find((p) => near(p) && Math.abs(o.x - p.x) < p.w / 2 + 60);
       if (own) ride.set(o.node, `${own.src}|${own.at}`);
-      else if (on.some((p) => near(p) && Math.abs(o.x - (p.x + dx)) < p.w / 2 + 60)) return none; // stands where the print would wait
+      else if (on.some((p) => near(p) && Math.abs(o.x - (p.x + dx)) < p.w / 2 + 320)) return none; // stands where the print would wait, counting how wide a typed line with its sub-line is
     }
     for (const p of on) (stage[`${p.src}|${p.at}`] ??= []).push({until: groups[k + 1][0].at, dx});
   }
@@ -237,7 +237,7 @@ const PrintHand: React.FC<PrintHandT & {room: number}> = ({name, role, note, at,
     <div
       style={{
         position: 'absolute',
-        top: '24%',
+        top: '32%', // low enough that the name's rising end stays under a date tag in the top corner
         ...(right ? {left: 'calc(100% + 96px)'} : {right: 'calc(100% + 96px)'}),
         width: room,
         transform: 'rotate(-3deg)',
