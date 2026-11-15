@@ -128,7 +128,7 @@ const StageShift: React.FC<{st: StageSteps; children: React.ReactNode}> = ({st, 
  *  empty while the first one waits - "the image should be in the middle and after the second image is shown it
  *  should be pushed to the left". Reads the scene's element tree: the prints on the wall so far sit centred as a
  *  group, and slide to the places the editor gave them as the next one flies in; what is placed on or under a
- *  waiting print (a label, a ring) travels with it. Left alone when the arrivals are under 1.5 s apart, when a
+ *  waiting print (a label, a ring) travels with it. Left alone when the next print arrives within 3 s (a short wait keeps the editor's layout: producer, Asashimo/Kasumi), when a
  *  print carries a handwritten name beside it, or when something else already stands on the wall the print would
  *  wait on. */
 export const stagePlan = (el: React.ReactNode): {stage: Stage; el: React.ReactNode} => {
@@ -152,7 +152,7 @@ export const stagePlan = (el: React.ReactNode): {stage: Stage; el: React.ReactNo
   const groups: P[][] = [];
   for (const p of [...prints].sort((a, b) => a.at - b.at)) {
     const g = groups[groups.length - 1];
-    if (g && p.at - g[0].at < 1.5) g.push(p);
+    if (g && p.at - g[0].at < 3) g.push(p);
     else groups.push([p]);
   }
   if (groups.length < 2) return none;
