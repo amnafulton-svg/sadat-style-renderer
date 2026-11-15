@@ -618,6 +618,14 @@ for sid, dur, line in held:
     if not (sid in shot_len and shot_len[sid] < dur - 1 and shot_len[sid] <= 8):
         E(line)
 
+# the big typewriter line never lies across a print's edge (producer, Japan oil 6:34 2026-11-15: the "$" of
+# "$30 million" sat on the photo's border - the typewriter number is wide)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fixfit import clashes
+for fn, sid, text, ps in clashes(ROOT):
+    E(f'{sid}: the big line "{text}" lies across the edge of the print {ps}: move it onto clear wall or make it '
+      f'smaller (python tools/fixfit.py moves them all)')
+
 for w in warns:
     print('WARN ', w)
 for e in errs:

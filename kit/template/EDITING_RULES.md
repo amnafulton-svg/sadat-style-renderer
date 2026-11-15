@@ -154,6 +154,8 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   Special Elite for tape labels. Crimson highlight bars, red marker circles.
 - **Prints:** white border, small tilt (±1–4°), drop shadow, never stretched.
 - **HOUSE:** no subtitles.
+- A big typewriter line beside a print stays on clear wall, never across the print's edge (the line is wide):
+  `python tools/fixfit.py` moves or shrinks the ones that touch; validate errors on any left. Run it before fixink.
 - **HOUSE: text must read against what is under it.** `BigSerif`/`ListWords` default to cream: on `Paper`, light
   desks, pale sky or white print borders give them dark ink (`color`) or a dark plate. Tags, tapes and bars sit beside
   prints, not on their edges or captions, and stay inside the frame at the end of every camera move.
