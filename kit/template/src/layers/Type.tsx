@@ -1,6 +1,6 @@
 // Type layers. In the reference, text never narrates — it STAMPS the one word the viewer must keep:
 // a year, a count, a name, a verdict. Each element lands on its spoken word, never before.
-// BigSerif   — huge didone figure ("1967", "22 times"): numbers that carry the argument. Blur-in pop.
+// BigSerif   — the one figure the argument rests on ("1967", "22 times"), on a cream index slip. Used sparingly.
 // Highlight  — serif phrase with a crimson bar growing behind it, over footage: ONLY a real quote from a person or
 //              document, in quote marks (producer 2026-11-05; validate.py errors otherwise).
 // QuoteText  — word-by-word blur-in serif, timed to the voice reading it.
@@ -10,7 +10,10 @@
 // KraftNote  — kraft-paper note with red condensed caps: the investigator's scribbled conclusion.
 import React from 'react';
 import {interpolate, staticFile} from 'remotion';
-import {C, FONT, OnPaper, easeOut, prog, rand} from '../lib/core';
+import INK_AUTO from '../lib/ink.json';
+// tools/fixink.py measures the picture behind each plain line / note and writes the colour that shows there
+const inkAuto = (text: string, at: number) => (INK_AUTO as Record<string, {ink?: boolean; arrow?: string}>)[`${text}|${at}`];
+import {C, FONT, OnDark, OnPaper, easeOut, prog, rand} from '../lib/core';
 import {useCue, useScene} from '../lib/scene';
 
 type Pos = {x: number; y: number; anchor?: 'center' | 'left' | 'right'};
@@ -25,8 +28,8 @@ const place = ({x, y, anchor = 'center'}: Pos): React.CSSProperties => ({
 export const safeY = (y: number, h: number) => Math.max(40 + h / 2, Math.min(y, 1040 - h / 2));
 
 // HOUSE (Chipyong-ni review 2026-10-25): labels, bars and type always sit above the prints and film of their scene
-// (a print that slid in later covered "ENTIRE REGIMENTS DESTROYED"), and light type that is not on paper gets a soft
-// dark pool behind it plus a heavy shadow, so it reads on a white sky ("the manpower, the momentum" vanished at 0:18).
+// (a print that slid in later covered "ENTIRE REGIMENTS DESTROYED"), and light type that is not on paper must still
+// read on a white sky ("the manpower, the momentum" vanished at 0:18): it gets a solid tag behind it, never a blur.
 export const Z_LABEL = 40;
 export const isLight = (c: string) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(c.trim());
@@ -34,74 +37,50 @@ export const isLight = (c: string) => {
   const n = parseInt(m[1], 16);
   return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.55;
 };
-export const READ_SHADOW = '0 2px 3px rgba(0,0,0,.9), 0 0 18px rgba(0,0,0,.75), 0 0 42px rgba(0,0,0,.5)';
-/** soft dark pool behind light type over film (inside a block with isolation: isolate) */
-export const Scrim: React.FC<{size: number; opacity: number}> = ({size, opacity}) => (
-  <div
-    style={{
-      position: 'absolute',
-      inset: `${-size * 0.55}px ${-size * 1.1}px`,
-      zIndex: -1,
-      opacity,
-      pointerEvents: 'none',
-      background: 'radial-gradient(closest-side, rgba(0,0,0,.82), rgba(0,0,0,.64) 55%, rgba(0,0,0,0))',
-    }}
-  />
+// HOUSE (producer, Japan oil 2026-11-15): no dark blur, outline or box behind the big number, in any video. It is a
+// plain typewriter line whose colour follows the picture (tools/fixink.py); running type over film sits on a solid tag.
+/** solid dark tag behind light running type over film (inside a block with isolation: isolate) */
+const Panel: React.FC<{size: number; opacity: number}> = ({size, opacity}) => (
+  <div style={{position: 'absolute', inset: `${-size * 0.32}px ${-size * 0.55}px`, zIndex: -1, opacity, pointerEvents: 'none', background: C.tag}} />
 );
 
-export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; color?: string; sub?: string; bar?: boolean; out?: number}> = ({
+/** the one number the argument rests on: a plain typewriter line with what it counts under it, fading in and out.
+ *  Warm white on a dark picture, dark ink on a bright one - tools/fixink.py measures the picture and decides
+ *  (`ink` forces dark by hand). `color` and `bar` are kept for old timelines and are not needed. */
+export const BigSerif: React.FC<Pos & {text: string; at: number; size?: number; color?: string; sub?: string; bar?: boolean; out?: number; ink?: boolean}> = ({
   text,
   at,
   size = 260,
   color: colorIn,
   sub,
-  bar = false,
   out,
+  ink: inkIn,
   ...pos
 }) => {
   const paper = React.useContext(OnPaper);
-  const color = colorIn ?? (paper && !bar ? C.ink : C.cream);
   const cue = useCue();
   const {frame} = useScene();
-  const s = cue(at) - 2;
-  const p = prog(frame, s, 10);
-  const o = out !== undefined ? 1 - prog(frame, cue(out), 8) : 1;
+  const dark = React.useContext(OnDark);
+  // typewriter line, plain on the picture: no outline, no box, no pool behind it. Its colour follows the picture -
+  // warm white on a dark one, `ink` (near-black) on a bright one (sky, sea, snow, paper). Light type over film
+  // also dims the frame a little while it is up; ink never dims.
+  const s0 = cue(at) - 3;
+  const q = prog(frame, s0, 9);
+  const fade = out !== undefined ? 1 - prog(frame, cue(out), 10) : 1;
+  const dk = paper || (inkAuto(text, at)?.ink ?? !!inkIn);
+  const col = dk ? (colorIn && !isLight(colorIn) ? colorIn : '#15120e') : '#f7efdc';
+  const big = Math.min(size * 0.8, 160);
+  
   return (
-    <div style={{...place(pos), opacity: p * o, textAlign: 'center', zIndex: Z_LABEL, isolation: 'isolate'}}>
-      {!bar && !paper && isLight(color) && <Scrim size={size * 0.5} opacity={1} />}
-      {bar && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: `${size * 0.02}px ${-size * 0.16}px ${sub ? -size * 0.05 : size * 0.02}px`,
-            transform: `scaleX(${interpolate(p, [0, 1], [0.3, 1])})`,
-            background: 'rgba(5,5,5,0.86)',
-          }}
-        />
-      )}
-      <div
-        style={{
-          position: 'relative',
-          fontFamily: FONT.didone,
-          fontWeight: 700,
-          fontSize: size,
-          lineHeight: 1,
-          color,
-          letterSpacing: -2,
-          filter: `blur(${(1 - p) * 14}px)`,
-          transform: `scale(${1.12 - 0.12 * p})`,
-          textShadow: paper ? '0 10px 40px rgba(0,0,0,.7)' : READ_SHADOW,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {text}
+    <>
+      {!dk && !dark && <div style={{position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, background: '#000', opacity: 0.4 * q * fade, zIndex: 1, pointerEvents: 'none'}} />}
+      <div style={{...place(pos), opacity: q * fade, textAlign: 'center', zIndex: Z_LABEL, filter: `blur(${(1 - q) * 5}px)`}}>
+        <div style={{fontFamily: FONT.type, fontSize: big, lineHeight: 1.1, letterSpacing: big * 0.03, color: col, whiteSpace: 'nowrap'}}>{text}</div>
+        {sub && (
+          <div style={{fontFamily: FONT.type, fontSize: Math.min(Math.max(big * 0.4, 36), Math.max(30, 680 / (sub.length * 0.62))), lineHeight: 1.2, letterSpacing: 2, color: dk ? '#221e18' : '#e6e3d8', marginTop: big * 0.12, opacity: prog(frame, s0 + 8, 10), whiteSpace: 'nowrap'}}>{sub}</div>
+        )}
       </div>
-      {sub && (
-        <div style={{position: 'relative', fontFamily: FONT.serif, fontStyle: 'italic', fontSize: Math.max(size * 0.17, 48), color: '#efe7d6', textShadow: '0 2px 12px rgba(0,0,0,.9)', marginTop: size * 0.06, opacity: prog(frame, s + 8, 10)}}>
-          {sub}
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 
@@ -147,8 +126,8 @@ export const QuoteText: React.FC<Pos & {words: {w: string; at: number}[]; size?:
   const {frame} = useScene();
   const light = !paper && isLight(color);
   return (
-    <div style={{...place(pos), width, fontFamily: FONT.serif, fontSize: size, lineHeight: 1.32, color, zIndex: Z_LABEL, isolation: 'isolate', textShadow: light ? READ_SHADOW : undefined}}>
-      {light && words.length > 0 && <Scrim size={size} opacity={prog(frame, cue(words[0].at) - 2, 7)} />}
+    <div style={{...place(pos), width, fontFamily: FONT.serif, fontSize: size, lineHeight: 1.32, color, zIndex: Z_LABEL, isolation: 'isolate'}}>
+      {light && words.length > 0 && <Panel size={size} opacity={prog(frame, cue(words[0].at) - 2, 7)} />}
       {words.map((x, i) => {
         const p = prog(frame, cue(x.at) - 2, 7);
         const m = mark.includes(x.w);
@@ -236,7 +215,7 @@ export const ListWords: React.FC<Pos & {items: {w: string; at: number}[]; size?:
   const light = !inline && !React.useContext(OnPaper) && isLight(color);
   return (
     <div style={{...(inline ? {marginTop: 14} : place(pos)), textAlign: pos.anchor === 'left' ? 'left' : 'center', ...(inline ? {} : {zIndex: Z_LABEL, isolation: 'isolate'})}}>
-      {light && items.length > 0 && <Scrim size={size} opacity={prog(frame, cue(items[0].at) - 2, 7)} />}
+      {light && items.length > 0 && <Panel size={size} opacity={prog(frame, cue(items[0].at) - 2, 7)} />}
       {items.map((x, i) => {
         const p = prog(frame, cue(x.at) - 2, 7);
         return (
@@ -250,7 +229,6 @@ export const ListWords: React.FC<Pos & {items: {w: string; at: number}[]; size?:
               opacity: p * (dim && i < lastOn ? 0.45 : 1),
               transform: `translateY(${(1 - p) * 18}px)`,
               filter: `blur(${(1 - p) * 8}px)`,
-              textShadow: light ? READ_SHADOW : undefined,
               whiteSpace: 'nowrap',
             }}
           >

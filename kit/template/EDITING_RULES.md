@@ -83,6 +83,8 @@ Moving between these three planes means something. Film → board says "now look
    Two or three figures to compare (`type: 'bars'`, 2-3 rows) play as big numbers that fill the frame, each
    counting up onto its spoken word with a bar to scale under it: `Chart` does this by itself, write the rows
    as usual (`highlight: true` on a row makes that one red).
+   A `BigSerif` is a plain typewriter line for the one figure the argument rests on: a few in a video, not every
+   number the script says (producer, Japan oil 2026-11-15: it was overused).
 6. **A list** ("geography, tribe, history") → a fast film or photo cut per item (the item's word as a `LabelTape`
    on it). `ListWords` / `KraftNote` only on top of a picture.
 7. **A quote or the argument itself** → film or real photos of what the line is about (its era, its people, its
@@ -155,7 +157,12 @@ A transition used for decoration means nothing, so most changes are hard cuts.
 - **HOUSE: text must read against what is under it.** `BigSerif`/`ListWords` default to cream: on `Paper`, light
   desks, pale sky or white print borders give them dark ink (`color`) or a dark plate. Tags, tapes and bars sit beside
   prints, not on their edges or captions, and stay inside the frame at the end of every camera move.
-  Light type over film gets a dark backing by itself; still keep it off the brightest part of the frame (sky).
+  Nothing dark is blurred behind type any more, and letters carry no outline (producer, Japan oil 2026-11-15).
+  `BigSerif` and `HandNote` take their colour from the picture: when the pictures and the notes' places are
+  settled, run `python tools/fixink.py` (again after moving a note or swapping its picture). It measures the
+  picture under each one and writes src/lib/ink.json: warm white on a dark picture, dark ink on a bright one,
+  warm white with a soft dark patch behind a note on a grey or patchy one, and the arrow in the pen's colour
+  unless that would not show (then the other tone, or red). Nothing in the timeline changes.
   Labels always draw above prints, so a print landing later never hides a bar.
 - **HOUSE: `DateTag` sits in a top corner (producer, 2026-11-05)**, top left by itself, never mid-frame over a face
   or the thing to see; if a face or the subject is in the top left, give it `corner="right"`. (x/y are ignored.)
@@ -186,7 +193,7 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   after the person, else the nearest). Free NameStrips stay for film and maps only.
 - **HOUSE: one portrait alone = a big print and a handwritten name.** A shot whose only picture is one person's
   portrait does not leave a small print in the middle of an empty wall with a strip under it: the print fills one
-  side of the wall and `hand={{name, role, note, at, noteAt}}` writes the name in white pencil on the free side
+  side of the wall and `hand={{name, role, note, at, noteAt}}` writes the name in bold white handwriting on the free side
   (it places and sizes itself; arrow to the photo, role in small typewriter, the note in orange pencil), instead
   of `names=`. Only what the script says goes in `role` and `note`. Two or more people, group photos, boards of
   several prints and wide photos keep `names=` / FullPhoto as before (producer, Pacific 0:46 2026-11-10: "i like
@@ -201,10 +208,10 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   FullPhoto, film and boards of several prints, placed under the picture they name.
 - **HOUSE: on a full-screen photo, write the note on the picture.** When a `FullPhoto` shows the one thing the
   line names, `HandNote` writes its name by hand on a quiet part of the picture at the spoken word, draws an arrow
-  to it or an orange ring around it, and adds the place and date in orange:
+  to it or an orange ring around it, and adds the place and date under it in the same pen:
   `<HandNote x={150} y={250} text="USS Quincy" sub="Savo Island, 9 Aug. 1942" at={307.5} subAt={308.7} size={150}
-  ring={[910, 640, 330, 95]} />`, or with an arrow `from={[560, 310]} to={[720, 440]}`. White pencil by default,
-  `ink` for a bright sky. Look at a still: the words sit on a calm area, the arrow tip or ring is on the thing.
+  ring={[910, 640, 330, 95]} />`, or with an arrow `from={[560, 310]} to={[720, 440]}`. Its colour and the arrow's
+  are picked from the picture by `tools/fixink.py` (see above), so do not choose them. Look at a still: the words sit on a calm area, the arrow tip or ring is on the thing.
   One or two short notes a shot; the black tag stays for busy pictures with no calm area (producer, Pacific
   2026-11-10: the handwritten note was picked over the black tag in the corner).
 - **HOUSE: one good photo plays full screen.** When a shot's only picture is one photo that is wide (aspect
@@ -219,8 +226,8 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   `python tools/trimfull.py` (`--dry` lists first) crops straight flat borders into <name>_trim.jpg and repoints the
   FullPhoto; it leaves skies and plain walls alone. A wide paper mat around an engraving it can miss: crop by hand.
   A photo whose head is near the top edge gets `focusY={15}` so the crop keeps the head.
-- Light type that is not on paper gets a dark scrim behind it (Type.tsx). On a white or busy picture that is still
-  not enough: give BigSerif `bar` (dark box), or move the type to a plain part of the frame. Never type across a
+- Light running type over film (`QuoteText`, `ListWords`) sits on a solid dark tag (Type.tsx). Put type on a plain
+  part of the frame. Never type across a
   picture's own title or a face.
 
 ## 7. Sound

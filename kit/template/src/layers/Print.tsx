@@ -9,6 +9,11 @@
 import React from 'react';
 import {Img, OffthreadVideo, interpolate, staticFile} from 'remotion';
 import {C, FONT, easeOut, prog, rand} from '../lib/core';
+import {HAND_K} from '../lib/core';
+import INK_AUTO from '../lib/ink.json';
+// tools/fixink.py measures the picture behind each plain line / note and writes the colour that shows there
+const inkAuto = (text: string, at: number) => (INK_AUTO as Record<string, {ink?: boolean; arrow?: string; color?: string; soft?: string}>)[`${text}|${at}`];
+
 import {useCue, useScene} from '../lib/scene';
 import {GRADE, Grade} from './Film';
 import {Z_LABEL, safeY} from './Type';
@@ -153,7 +158,7 @@ const PrintHand: React.FC<PrintHandT & {room: number}> = ({name, role, note, at,
   const chalk = '#f4f1e8';
   const right = side === 'right';
   const wipe = (q: number) => `inset(-20% ${100 - q * 104}% -20% 0)`; // written on left to right
-  const sh = '0 2px 6px rgba(0,0,0,.6)';
+  const sh = 'none'; // crisp thin edge, no blur (producer 2026-11-15: no shadow behind text)
   const inset = sz * 0.7;
   return (
     <div
@@ -171,7 +176,7 @@ const PrintHand: React.FC<PrintHandT & {room: number}> = ({name, role, note, at,
       }}
     >
       <div style={{position: 'relative'}}>
-        <div style={{fontFamily: FONT.hand, fontSize: sz, lineHeight: 0.9, color: chalk, whiteSpace: 'nowrap', clipPath: wipe(p), textShadow: sh}}>{name}</div>
+        <div style={{fontFamily: FONT.hand, fontWeight: 700, fontSize: (sz) * HAND_K, lineHeight: 0.9, color: chalk, whiteSpace: 'nowrap', clipPath: wipe(p), textShadow: sh}}>{name}</div>
         <svg width={150} height={130} viewBox="0 0 260 130" style={{position: 'absolute', top: sz * 0.78, ...(right ? {left: -70} : {right: -70, transform: 'scaleX(-1)'}), overflow: 'visible'}}>
           <path d="M250 20 C 180 120, 90 130, 10 80" fill="none" stroke={chalk} strokeWidth={9} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
           <path d="M44 62 L8 80 L40 108" fill="none" stroke={chalk} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" opacity={pa > 0.95 ? 1 : 0} />
@@ -183,7 +188,7 @@ const PrintHand: React.FC<PrintHandT & {room: number}> = ({name, role, note, at,
         </div>
       )}
       {note && (
-        <div style={{fontFamily: FONT.hand, fontSize: sz * 0.5, color, margin: `${sz * 0.14}px ${right ? 0 : inset}px 0 ${right ? inset : 0}px`, whiteSpace: 'nowrap', clipPath: wipe(pn), textShadow: sh}}>{note}</div>
+        <div style={{fontFamily: FONT.hand, fontWeight: 700, fontSize: (sz * 0.5) * HAND_K, color, margin: `${sz * 0.14}px ${right ? 0 : inset}px 0 ${right ? inset : 0}px`, whiteSpace: 'nowrap', clipPath: wipe(pn), textShadow: sh}}>{note}</div>
       )}
     </div>
   );
@@ -289,9 +294,12 @@ export const RedCircle: React.FC<{at: number; cx: number; cy: number; rx: number
 };
 
 /** handwritten note on a full-screen photo or film: the words are written on at the spoken moment, an arrow is drawn
- *  from them to the thing, an orange ring can close around it, and an orange second line (place, date) follows
+ *  from them to the thing, an orange ring can close around it, and a second line (place, date) follows in the same pen
  *  (producer, Pacific 5:07 2026-11-10: "USS Quincy" written on the photo with the ship ringed, picked over the black
- *  tag in the corner). White pencil on dark pictures; `ink` writes in dark ink for a bright sky or wall.
+ *  tag in the corner). White paint pen on dark pictures; `ink` writes in dark ink for a bright sky or wall. Both carry
+ *  a crisp thin edge in the opposite tone, so the note reads on a mid-grey photo too; nothing is blurred behind it
+ *  and the second line is no longer orange (producer, Japan oil 0:33 2026-11-15: the orange date on a grey sky was
+ *  unreadable and the arrow ran through it). An arrow that would start inside the words starts under them.
  *  x/y = where the words start, from/to = arrow start and tip, ring = [cx, cy, rx, ry], all in frame pixels. */
 export const HandNote: React.FC<{
   x: number; y: number; text: string; sub?: string; at: number; subAt?: number; size?: number; rot?: number;
@@ -303,9 +311,23 @@ export const HandNote: React.FC<{
   const pa = prog(frame, cue(at) + 10, 9);
   const pr = prog(frame, cue(at) + 16, 12);
   const ps = sub ? prog(frame, cue(subAt ?? at), 12) : 0;
-  const pen = ink ? '#14110d' : '#f4f1e8';
-  const sh = ink ? '0 0 14px rgba(255,255,255,.55)' : '0 2px 5px rgba(0,0,0,.85), 0 0 22px rgba(0,0,0,.6)';
-  const w = ink ? 7 : 6;
+  const auto = inkAuto(text, at); // the measured choice wins over the `ink` the editor wrote
+  const pen = auto?.color ?? ((auto?.ink ?? ink) ? '#14110d' : '#f7efdc');
+  const arrowCol = auto?.arrow ?? pen; // the arrow leaves the pen's colour only where that would not show
+  const rim = 'transparent'; // no outline on the handwriting (producer 2026-11-15): the pen colour follows the picture
+  const soft = auto?.soft; // a grey, busy picture: warm white stays, with a soft dark shadow or a feathered dark patch behind the words
+  const sh = 'none';
+  const w = 7;
+  // the words' box (frame px, before the small tilt): an arrow must not start inside it
+  const bw = Math.max(text.length * size * 0.4, (sub ?? '').length * size * 0.62 * 0.4 + 12);
+  const bh = size * 0.9 + (sub ? size * 0.62 * 1.25 + 6 : 0);
+  if (from && to && from[0] > x - 20 && from[0] < x + bw + 20 && from[1] > y - 20 && from[1] < y + bh + 20) {
+    const dxx = to[0] - (x + bw / 2);
+    const dyy = to[1] - (y + bh / 2);
+    from = Math.abs(dyy) * bw >= Math.abs(dxx) * bh
+      ? [Math.max(x + 30, Math.min(from[0], x + bw - 30)), dyy > 0 ? y + bh + 34 : y - 34]
+      : [dxx > 0 ? x + bw + 40 : x - 40, Math.max(y + 20, Math.min(from[1], y + bh - 20))];
+  }
   let arrow: React.ReactNode = null;
   if (from && to) {
     const dx = to[0] - from[0];
@@ -317,26 +339,33 @@ export const HandNote: React.FC<{
     const h = 30;
     arrow = (
       <>
-        <path d={`M${from[0]} ${from[1]} Q ${cx} ${cy} ${to[0]} ${to[1]}`} fill="none" stroke={pen} strokeWidth={w} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
-        <path
-          d={`M${to[0] - h * Math.cos(a - 0.5)} ${to[1] - h * Math.sin(a - 0.5)} L${to[0]} ${to[1]} L${to[0] - h * Math.cos(a + 0.5)} ${to[1] - h * Math.sin(a + 0.5)}`}
-          fill="none" stroke={pen} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" opacity={pa > 0.95 ? 1 : 0}
-        />
+        {[[rim, w + 6], [arrowCol, w]].map(([c, sw], i) => (
+          <React.Fragment key={i}>
+            <path d={`M${from[0]} ${from[1]} Q ${cx} ${cy} ${to[0]} ${to[1]}`} fill="none" stroke={c as string} strokeWidth={sw as number} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
+            <path
+              d={`M${to[0] - h * Math.cos(a - 0.5)} ${to[1] - h * Math.sin(a - 0.5)} L${to[0]} ${to[1]} L${to[0] - h * Math.cos(a + 0.5)} ${to[1] - h * Math.sin(a + 0.5)}`}
+              fill="none" stroke={c as string} strokeWidth={sw as number} strokeLinecap="round" strokeLinejoin="round" opacity={pa > 0.95 ? 1 : 0}
+            />
+          </React.Fragment>
+        ))}
       </>
     );
   }
   return (
     <>
-      <svg width={1920} height={1080} style={{position: 'absolute', left: 0, top: 0, zIndex: Z_LABEL, overflow: 'visible', filter: ink ? 'none' : 'drop-shadow(0 2px 4px rgba(0,0,0,.8))'}}>
+      <svg width={1920} height={1080} style={{position: 'absolute', left: 0, top: 0, zIndex: Z_LABEL, overflow: 'visible'}}>
         {arrow}
         {ring ? (
-          <ellipse cx={ring[0]} cy={ring[1]} rx={ring[2]} ry={ring[3]} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pr} transform={`rotate(-4 ${ring[0]} ${ring[1]})`} />
+          <ellipse cx={ring[0]} cy={ring[1]} rx={ring[2]} ry={ring[3]} fill="none" stroke={color} strokeWidth={7} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pr} transform={`rotate(-4 ${ring[0]} ${ring[1]})`} />
         ) : null}
       </svg>
+      {soft === 'grad' ? (
+        <div style={{position: 'absolute', left: x - 170, top: y - 110, width: bw + 340, height: bh + 220, zIndex: Z_LABEL, opacity: p, transform: `rotate(${rot}deg)`, background: 'radial-gradient(ellipse closest-side, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0) 100%)', pointerEvents: 'none'}} />
+      ) : null}
       <div style={{position: 'absolute', left: x, top: y, zIndex: Z_LABEL, transform: `rotate(${rot}deg)`, transformOrigin: '0 50%'}}>
-        <div style={{fontFamily: FONT.hand, fontSize: size, lineHeight: 0.9, color: pen, whiteSpace: 'nowrap', clipPath: `inset(-20% ${100 - p * 104}% -20% 0)`, textShadow: sh}}>{text}</div>
+        <div style={{fontFamily: FONT.hand, fontWeight: 700, fontSize: (size) * HAND_K, lineHeight: 0.9, color: pen, whiteSpace: 'nowrap', clipPath: `inset(-60% ${100 - p * 104}% -60% -10%)`, textShadow: sh}}>{text}</div>
         {sub ? (
-          <div style={{fontFamily: FONT.hand, fontSize: size * 0.62, color, marginTop: 6, marginLeft: 12, whiteSpace: 'nowrap', clipPath: `inset(-20% ${100 - ps * 104}% -20% 0)`, textShadow: sh}}>{sub}</div>
+          <div style={{fontFamily: FONT.hand, fontWeight: 700, fontSize: (size * 0.62) * HAND_K, color: pen, marginTop: 6, marginLeft: 12, whiteSpace: 'nowrap', clipPath: `inset(-60% ${100 - ps * 104}% -60% -10%)`, textShadow: sh}}>{sub}</div>
         ) : null}
       </div>
     </>

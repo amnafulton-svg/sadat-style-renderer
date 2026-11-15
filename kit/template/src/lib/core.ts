@@ -6,7 +6,7 @@ import {loadFont as loadPlayfair} from '@remotion/google-fonts/PlayfairDisplay';
 import {loadFont as loadCaslon} from '@remotion/google-fonts/LibreCaslonText';
 import {loadFont as loadElite} from '@remotion/google-fonts/SpecialElite';
 import {loadFont as loadOswald} from '@remotion/google-fonts/Oswald';
-import {loadFont as loadReenie} from '@remotion/google-fonts/ReenieBeanie';
+import {loadFont as loadHand} from '@remotion/google-fonts/Kalam';
 import words from './words.json';
 
 export const FPS = 25; // the reference is 25 fps
@@ -21,13 +21,16 @@ export const FONT = {
   didone: loadPlayfair('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // big numbers / years / section titles ("1967", "22 times")
   serif: (loadCaslon('italic', {weights: ['400'], subsets: ['latin']}), loadCaslon('normal', {weights: ['400'], subsets: ['latin']})).fontFamily, // quotes, list words, name strips
   type: loadElite('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // typewriter label tape, date stamps
-  hand: loadReenie('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // pencil handwriting: a portrait's name written beside its print (PhotoPrint hand=)
+  hand: loadHand('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // bold pen handwriting (Kalam Bold): names beside prints, notes on photos. Producer 2026-11-15: the thin pencil font could not be seen
   cond: loadOswald('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // red caps on kraft notes
 };
 
 /** true inside a light background (Paper): text layers then default to ink, not cream. Cream quote text on Paper
  *  was all but invisible (Alaska s03 "This idea is worth considering", 2026-10-23). */
 export const OnPaper = React.createContext(false);
+/** true inside a dark made background (ConcreteWall, Desk): plain light type already reads there, so the
+ *  big typewriter line does not dim the frame (it would grey the prints and the handwriting too). */
+export const OnDark = React.createContext(false);
 
 export const C = {
   crimson: '#9e1b1b', // highlight bars behind keywords
@@ -76,3 +79,7 @@ export const rand = (seed: number) => {
   const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
+
+/** Kalam is wider and taller than the old pencil font: handwriting sizes in the timeline are multiplied by this,
+ *  so `size`/`hand` values written for the old font still fit. */
+export const HAND_K = 0.76;
