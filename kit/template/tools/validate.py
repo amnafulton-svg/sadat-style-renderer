@@ -15,7 +15,7 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        or photo under another file name after the hook, the same setting (gate, crowd, room) again from another
        clip of one source film (_work/clips.tsv, written by cut.py), >= 1 s of blank (black/white/flat) film,
        a silent-film title card (intertitle) inside what a scene shows,
-       a DocCard mark that is not on printed lines of its scan (OCR, tools/docmark.py: beside the text, cutting
+       a DocCard or HeadlineCard mark that is not on printed lines of its page (OCR, tools/docmark.py: beside the text, cutting
        through a line, or running far past it), a date/number tag (DateTag, BigSerif, Highlight, LabelTape, BlackTag)
        landing > 0.6 s after the narrator says it, text (tags, tapes, type, quotes) that is not on screen for
        1 s (0.25 s per word if longer) after it has typed/faded on before its scene cuts, hook included,
@@ -28,7 +28,8 @@ ERROR: gaps/overlaps between scenes, last scene not ending at END, a clip missin
        and in a one-chat project (.onechat, tools/plancheck.py): no plan.md or a sentence without a row, a film line
        of plan.md showing film for under half its time without 3+ logged searches behind its "no film:", fewer than
        one archive.org search per 20 s of narration.
-WARN:  holds under 2.5 s outside the hook, burn count outside 3-6, smeared/out-of-focus film (repeats.py),
+WARN:  holds under 2.5 s outside the hook, a print on a wall of prints that lands > 3 s before the word its file
+       names (gold_bars.jpg long before "gold"), burn count outside 3-6, smeared/out-of-focus film (repeats.py),
        DocMaps zoomed past what world.jpg / their basemaps can show sharply (tools/mapres.py: add a Sentinel-2
        basemap or pull the camera back).
 """
@@ -143,7 +144,23 @@ for sid, fr, to, en, b in scenes:
     ats = [float(x) for x in re.findall(r'<(?:PhotoPrint|DocCard)\b[^>]*?\bat=\{([\d.]+)\}', b)]
     if ats and not re.search(r'<(?:F|Film|FullPhoto|DocMap|Chart)\b', b) and min(ats) - fr > 1.0:
         E(f'{sid}: nothing on screen for {min(ats) - fr:.1f} s after the cut at {fr} (first print at {min(ats)}); '
-          f'start the scene on a picture')
+          f'start the scene on a picture: film, or the print of what is said at the cut, never a later item moved early')
+# a print lands on its word: in a wall of prints that each arrive on their item, one whose file names a word said
+# seconds later came in early (WWII 2026-11-18: gold_bars.jpg alone on the wall 4.8 s before "gold", put there to
+# fill the cut). WARN only: file names are the editor's own words
+SKIPW = set('with from that this these those wide close line film shot photo print scan still clip part front back'.split())
+for sid, fr, to, en, b in scenes:
+    pr = [(m.group(1), float(m.group(2))) for m in
+          re.finditer(r'<PhotoPrint\s+src="([^"]+)"(?:[^>"]|"[^"]*")*?\bat=\{([\d.]+)\}', b)]
+    if len({at for _, at in pr}) < 2:
+        continue
+    said = [(re.sub(r'[^a-z]', '', w['w'].lower()), w['s']) for w in W if fr - 0.5 <= w['s'] <= to]
+    for src, at in pr:
+        keys = {t for t in re.split(r'[^a-z]+', Path(src).stem.lower()) if len(t) >= 4 and t not in SKIPW}
+        hits = sorted((t, k) for k in keys for w, t in said if len(w) >= 4 and (w.startswith(k) or k.startswith(w)))
+        if hits and hits[0][0] > at + 3.0:
+            Wn(f'{sid}: print {src} lands at {at}, {hits[0][0] - at:.1f} s before "{hits[0][1]}" is said at {hits[0][0]:.2f}; '
+               f'a print lands on its word (open the scene on what is said at the cut instead)')
 # an empty chart: the axis is up but its first bar/column/point lands > 3 s later (tax withholding s3/s4, 2026-10-24)
 for sid, fr, to, en, b in scenes:
     cm = re.search(r'<Chart chart=\{\{(.*)\}\}', b, re.S)
@@ -204,9 +221,63 @@ for at, n in burns:
         E(f'burn at {at}: film -> film ({scenes[i - 1][0]} -> {scenes[i][0]}); burns only on a layer change')
 
 # document marks sit on the printed words (Chipyong-ni 2026-10-25: two plaque boxes guessed by eye sat beside the
-# text): every mark rect must hold OCR lines, not cut through one, and not run more than a line past them
+# text): every mark rect must hold OCR lines, not cut through one, and not run more than a line past them.
+# HeadlineCard marks too (WWII 2026-11-18: both AFP-page highlights sat half a line above their words)
 import docmark  # noqa: E402
 
+
+def check_marks(sid, doc, rects, px=False):
+    d = docmark.ocr(ROOT, doc)
+    if d is None:
+        Wn(f'{sid}: marks on {doc} not checked (no OCR: install ~/yt/.venv-ocr)')
+        return
+    if len(d['lines']) < 2:
+        Wn(f'{sid}: OCR reads no text on {doc}; a mark there cannot be checked (prefer a legible scan)')
+        return
+    pw, ph = d['w'] / 2, d['h'] / 2  # HeadlineCard boxes: [x, y, w, h] page px; headline.mjs shoots at 2x
+    if px:
+        rects = [[x / pw, y / ph, (x + bw) / pw, (y + bh) / ph] for x, y, bw, bh in rects]
+    lh = sorted(ln['box'][3] - ln['box'][1] for ln in d['lines'])[len(d['lines']) // 2]
+    lw = lh * d['h'] / d['w']
+    show = lambda r: [round(r[0] * pw), round(r[1] * ph), round((r[2] - r[0]) * pw), round((r[3] - r[1]) * ph)] if px else r
+    # a box taller than 4 lines is a headline when it is wide and spells words, else a pencil stroke or a stamp
+    def printed(ln):
+        x0, y0, x1, y1 = ln['box']
+        return y1 - y0 <= 4 * lh or ((x1 - x0) * d['w'] >= 2 * (y1 - y0) * d['h']
+                                     and sum(c.isalnum() for c in ln['text']) >= 4)
+    text_lines = [ln for ln in d['lines'] if printed(ln)]
+    fix = f'run: {PYEXE} tools/docmark.py {doc} "the spoken words"'
+    for r in rects:
+        on, cut = [], []
+        for ln in text_lines:
+            x0, y0, x1, y1 = ln['box']
+            hx = min(r[2], x1) - max(r[0], x0)
+            if hx <= 0.3 * min(r[2] - r[0], x1 - x0):
+                continue
+            v = (min(r[3], y1) - max(r[1], y0)) / max(y1 - y0, 1e-6)
+            if v >= 0.6:  # docmark stops halfway into the overlap of tight lines
+                on.append(ln)
+            elif v >= 0.25:
+                cut.append(ln)
+        if not on:
+            E(f'{sid}: mark {show(r)} on {doc} is not on any printed line ({fix})')
+            continue
+        top, bot = min(ln['box'][1] for ln in on), max(ln['box'][3] for ln in on)
+        for ln in cut:
+            # OCR boxes of tall or tight type overlap their neighbours: only the part of the line the mark covers
+            # beyond the lines it is on counts as cutting through it
+            y0, y1 = max(r[1], ln['box'][1]), min(r[3], ln['box'][3])
+            extra = max(0, min(y1, top) - y0) + max(0, y1 - max(y0, bot))
+            if extra < 0.25 * (ln['box'][3] - ln['box'][1]):
+                continue
+            E(f'{sid}: mark {show(r)} on {doc} cuts through the line "{ln["text"][:40]}" ({fix})')
+        left, right = min(ln['box'][0] for ln in on), max(ln['box'][2] for ln in on)
+        if r[1] < top - lh or r[3] > bot + lh or r[0] < left - 2 * lw or r[2] > right + 2 * lw:
+            E(f'{sid}: mark {show(r)} on {doc} runs past its text (printed lines span '
+              f'{show([left, top, right, bot])}; {fix})')
+
+
+QUAD = r'\[\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\s*\]'
 for sid, fr, to, en, b in scenes:
     for dm in re.finditer(r'<DocCard\b.*?photo="([^"]+)"(.*?)/>', b, re.S):
         doc, body = dm.groups()
@@ -214,54 +285,23 @@ for sid, fr, to, en, b in scenes:
         if not mk:
             continue
         # a circle rings an area (a town on a map, a signature): only highlight/underline marks must sit on words
-        quad = r'\[\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\s*\]'
         rects = [[float(v) for v in q] for o in re.findall(r'\{[^{}]*\}', mk.group(1)) if 'circle' not in o
-                 for q in re.findall(quad, o)]
-        if not rects:
+                 for q in re.findall(QUAD, o)]
+        if rects:
+            check_marks(sid, doc, rects)
+    for hm in re.finditer(r'<HeadlineCard\b(.*?)/>', b, re.S):
+        body = hm.group(1)
+        src = re.search(r'\bsrc="([^"]+)"', body)
+        if not src:  # props spread from a const: {...AFP} with const AFP = {src: 'headlines/x.png', ...}
+            sp = re.search(r'\{\.\.\.(\w+)\}', body)
+            cm = sp and re.search(rf"const {sp.group(1)}\s*=\s*\{{[^}}]*?src:\s*['\"]([^'\"]+)", s)
+            src = cm
+        mk = re.search(r'marks=\{\[(.*)\]\}', body, re.S)
+        if not src or not mk:
             continue
-        d = docmark.ocr(ROOT, doc)
-        if d is None:
-            Wn(f'{sid}: marks on {doc} not checked (no OCR: install ~/yt/.venv-ocr)')
-            continue
-        if len(d['lines']) < 2:
-            Wn(f'{sid}: OCR reads no text on {doc}; a mark there cannot be checked (prefer a legible scan)')
-            continue
-        lh = sorted(ln['box'][3] - ln['box'][1] for ln in d['lines'])[len(d['lines']) // 2]
-        lw = lh * d['h'] / d['w']
-        # a box taller than 4 lines is a headline when it is wide and spells words, else a pencil stroke or a stamp
-        def printed(ln):
-            x0, y0, x1, y1 = ln['box']
-            return y1 - y0 <= 4 * lh or ((x1 - x0) * d['w'] >= 2 * (y1 - y0) * d['h']
-                                         and sum(c.isalnum() for c in ln['text']) >= 4)
-        text_lines = [ln for ln in d['lines'] if printed(ln)]
-        for r in rects:
-            on, cut = [], []
-            for ln in text_lines:
-                x0, y0, x1, y1 = ln['box']
-                hx = min(r[2], x1) - max(r[0], x0)
-                if hx <= 0.3 * min(r[2] - r[0], x1 - x0):
-                    continue
-                v = (min(r[3], y1) - max(r[1], y0)) / max(y1 - y0, 1e-6)
-                if v >= 0.6:  # docmark stops halfway into the overlap of tight lines
-                    on.append(ln)
-                elif v >= 0.25:
-                    cut.append(ln)
-            fix = f'run: {PYEXE} tools/docmark.py {doc} "the spoken words"'
-            if not on:
-                E(f'{sid}: mark {r} on {doc} is not on any printed line ({fix})')
-                continue
-            top, bot = min(ln['box'][1] for ln in on), max(ln['box'][3] for ln in on)
-            for ln in cut:
-                # OCR boxes of tall or tight type overlap their neighbours: only the part of the line the mark covers
-                # beyond the lines it is on counts as cutting through it
-                y0, y1 = max(r[1], ln['box'][1]), min(r[3], ln['box'][3])
-                extra = max(0, min(y1, top) - y0) + max(0, y1 - max(y0, bot))
-                if extra < 0.25 * (ln['box'][3] - ln['box'][1]):
-                    continue
-                E(f'{sid}: mark {r} on {doc} cuts through the line "{ln["text"][:40]}" ({fix})')
-            left, right = min(ln['box'][0] for ln in on), max(ln['box'][2] for ln in on)
-            if r[1] < top - lh or r[3] > bot + lh or r[0] < left - 2 * lw or r[2] > right + 2 * lw:
-                E(f'{sid}: mark {r} on {doc} runs past its text (printed lines span {[left, top, right, bot]}; {fix})')
+        rects = [[float(v) for v in q] for q in re.findall(QUAD, mk.group(1))]
+        if rects:
+            check_marks(sid, 'public/' + src.group(1), rects, px=True)
 
 # a date or figure on screen lands when the narrator says it (Chipyong-ni 2026-10-25: "25 October 1950" appeared
 # after the date was spoken, because the scene cut came after the sentence had started)

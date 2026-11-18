@@ -6,6 +6,9 @@
 
 <doc> is a file in public/docs (name or path). Rects are [x0, y0, x1, y1] fractions of the scan, one per printed line:
     marks={[{lines: [[0.12, 0.31, 0.88, 0.36], [0.12, 0.37, 0.64, 0.42]], at: 478.9, until: 480.4}]}
+A HeadlineCard page (headlines/x.png, from tools/headline.mjs) prints [x, y, w, h] page pixels instead, ready for its
+marks={[{at, lines: [...]}]}: headline.mjs measures the live page, which can still shift before the shot (WWII
+2026-11-18: both AFP highlights sat half a line high), so take the boxes from here when validate.py says a mark is off.
 Never guess a mark box by eye (Chipyong-ni 2026-10-25: two plaque marks sat beside the text); validate.py checks every
 mark against this OCR. OCR runs in ~/yt/.venv-ocr (RapidOCR) and is cached in _cache/ocr/.
 """
@@ -28,6 +31,8 @@ BY_ROW = lambda ln: (round((ln['box'][1] + ln['box'][3]) * 50), ln['box'][0])
 def ocr(root, name):
     """{'w', 'h', 'lines': [{'text', 'box' (fractions), 'words': [{'text', 'box'}]}]} or None when OCR is unavailable"""
     p = Path(name)
+    if not p.is_file():
+        p = Path(root) / 'public' / name
     if not p.is_file():
         p = Path(root) / 'public/docs' / Path(name).name
     if not p.is_file():
@@ -125,6 +130,10 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     d = ocr(ROOT, sys.argv[1])
+    PX = 'headlines' in sys.argv[1].replace(chr(92), '/')
+    # headline.mjs shoots at deviceScaleFactor 2: the card's boxes are in page (CSS) px = PNG px / 2
+    out = lambda rs: json.dumps([[round(r[0] * d['w'] / 2), round(r[1] * d['h'] / 2), round((r[2] - r[0]) * d['w'] / 2),
+                                  round((r[3] - r[1]) * d['h'] / 2)] for r in rs]) if PX else json.dumps(rs)
     if d is None:
         sys.exit(f'no OCR for {sys.argv[1]} (file missing or ~/yt/.venv-ocr not installed)')
     if not d['lines']:
@@ -135,7 +144,7 @@ if __name__ == '__main__':
     elif sys.argv[2] == '--rows':
         a, _, b = sys.argv[3].partition('-')
         rows = d['lines'][int(a) - 1:int(b or a)]
-        print('lines: ' + json.dumps([pad(ln['box'], d) for ln in rows]))
+        print('lines: ' + out([pad(ln['box'], d) for ln in rows]))
         for ln in rows:
             print('   ', ln['text'])
     else:
@@ -143,4 +152,4 @@ if __name__ == '__main__':
         print(f'match {sc:.2f}: {got}')
         if sc < 0.6:
             print('weak match: check the numbered lines (no phrase) and use --rows')
-        print('lines: ' + json.dumps(rects))
+        print('lines: ' + out(rects))
