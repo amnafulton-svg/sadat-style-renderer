@@ -28,6 +28,7 @@ ap.add_argument('script')
 ap.add_argument('voice')
 ap.add_argument('--dest', default=str(Path.home() / 'sadat-chat'))
 ap.add_argument('--no-install', action='store_true')
+ap.add_argument('--chart-look', choices=('A', 'B', 'C'), help='force this chart design (default: the next one in turn, kit/chartlook.py)')
 ap.add_argument('--no-words', action='store_true')
 ap.add_argument('--editing', choices=('solo', 'sections'), default='solo',
                 help='solo: this chat edits the whole video, helpers only fetch media (Chipyong-ni, ~$45); '
@@ -93,6 +94,9 @@ shutil.copytree(KIT / 'template', proj, ignore=shutil.ignore_patterns(
     'node_modules', '_cache', '_stills', '_sheets', '_review', '__pycache__', *HELPERS,
     *(('speech.py',) if a.no_speeches else ())))
 shutil.copy2(script, proj / 'script.md')
+sys.path.insert(0, str(KIT))
+from chartlook import assign as assign_chart_look  # noqa: E402
+print('chart design', assign_chart_look(proj, proj.parent, a.chart_look))
 narr = proj / 'public/audio/narration.mp3'
 if voice.suffix.lower() == '.mp3':
     shutil.copy2(voice, narr)

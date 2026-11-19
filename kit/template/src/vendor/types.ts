@@ -298,4 +298,6 @@ export type ArchiveChart = {
   badge?: {text: string; at: number};
   /** false hides the value tag that rides the line head while it draws (when two series start together) */
   runningTag?: boolean;
+  /** chart design for this one chart; normally left out (the video's look from src/lib/chartlook.json is used) */
+  look?: 'A' | 'B' | 'C';
 };

@@ -18,7 +18,7 @@ export const NARRATION_OFFSET = 0;
 
 export const FONT = {
   title: loadBebas('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // condensed caps, grunge-masked in TitleCard
-  didone: loadPlayfair('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // big numbers / years / section titles ("1967", "22 times")
+  didone: loadPlayfair('normal', {weights: ['700', '900'], subsets: ['latin']}).fontFamily, // big numbers / years / section titles ("1967", "22 times")
   serif: (loadCaslon('italic', {weights: ['400'], subsets: ['latin']}), loadCaslon('normal', {weights: ['400'], subsets: ['latin']})).fontFamily, // quotes, list words, name strips
   type: loadElite('normal', {weights: ['400'], subsets: ['latin']}).fontFamily, // typewriter label tape, date stamps
   hand: loadHand('normal', {weights: ['700'], subsets: ['latin']}).fontFamily, // bold pen handwriting (Kalam Bold): names beside prints, notes on photos. Producer 2026-11-15: the thin pencil font could not be seen
