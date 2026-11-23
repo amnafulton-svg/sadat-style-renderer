@@ -217,7 +217,7 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   line names, `HandNote` writes its name by hand on a quiet part of the picture at the spoken word, draws an arrow
   to it or an orange ring around it, and adds the place and date under it in the same pen:
   `<HandNote x={150} y={250} text="USS Quincy" sub="Savo Island, 9 Aug. 1942" at={307.5} subAt={308.7} size={150}
-  ring={[910, 640, 330, 95]} />`, or with an arrow `from={[560, 310]} to={[720, 440]}`. Its colour and the arrow's
+  ring={[910, 640, 330, 95]} />`, or with an arrow `to={[720, 440]}`: it leaves the words from whichever side faces the target. On a person, run `python tools/fixarrow.py` before fixink: it moves the words off faces and bodies to a clear side of the head and puts the tip at the head's edge (producer, Kim 2026-11-23). Its colour and the arrow's
   are picked from the picture by `tools/fixink.py` (see above), so do not choose them. Look at a still: the words sit on a calm area, the arrow tip or ring is on the thing.
   One or two short notes a shot; the black tag stays for busy pictures with no calm area (producer, Pacific
   2026-11-10: the handwritten note was picked over the black tag in the corner).

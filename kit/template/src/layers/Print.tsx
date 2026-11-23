@@ -386,6 +386,30 @@ export const RedCircle: React.FC<{at: number; cx: number; cy: number; rx: number
  *  and the second line is no longer orange (producer, Japan oil 0:33 2026-11-15: the orange date on a grey sky was
  *  unreadable and the arrow ran through it). An arrow that would start inside the words starts under them.
  *  x/y = where the words start, from/to = arrow start and tip, ring = [cx, cy, rx, ry], all in frame pixels. */
+/** where a note's arrow leaves its words: the point, 26 px out, on the side of the box that faces the target */
+export const noteArrowStart = (x: number, y: number, bw: number, bh: number, to?: [number, number]): [number, number] | null => {
+  if (!to) return null;
+  const bx = x + bw / 2;
+  const by = y + bh / 2;
+  const dx = to[0] - bx;
+  const dy = to[1] - by;
+  const k = Math.min((bw / 2 + 26) / Math.max(Math.abs(dx), 1e-3), (bh / 2 + 26) / Math.max(Math.abs(dy), 1e-3));
+  return k < 0.85 ? [bx + dx * k, by + dy * k] : null; // a target under the words gets no arrow
+};
+
+/** a gentle curve that bows away from the words' centre */
+export const noteArrowBend = (s: [number, number], e: [number, number], bx: number, by: number, bend: number): [number, number] => {
+  const L = Math.hypot(e[0] - s[0], e[1] - s[1]) || 1;
+  const nx = -(e[1] - s[1]) / L;
+  const ny = (e[0] - s[0]) / L;
+  const amt = Math.min(bend, L * 0.22);
+  const mx = (s[0] + e[0]) / 2;
+  const my = (s[1] + e[1]) / 2;
+  const d = (k: number) => (mx + nx * amt * k - bx) ** 2 + (my + ny * amt * k - by) ** 2;
+  const k = d(1) >= d(-1) ? 1 : -1;
+  return [mx + nx * amt * k, my + ny * amt * k];
+};
+
 export const HandNote: React.FC<{
   x: number; y: number; text: string; sub?: string; at: number; subAt?: number; size?: number; rot?: number;
   from?: [number, number]; to?: [number, number]; bend?: number; ring?: [number, number, number, number]; ink?: boolean; color?: string;
@@ -403,32 +427,28 @@ export const HandNote: React.FC<{
   const soft = auto?.soft; // a grey, busy picture: warm white stays, with a soft dark shadow or a feathered dark patch behind the words
   const sh = 'none';
   const w = 7;
-  // the words' box (frame px, before the small tilt): an arrow must not start inside it
-  const bw = Math.max(text.length * size * 0.4, (sub ?? '').length * size * 0.62 * 0.4 + 12);
+  // the words' box (frame px, before the small tilt); Kalam Bold runs ~0.33 em a letter
+  const bw = Math.max(text.length * size * 0.33, (sub ?? '').length * size * 0.62 * 0.33 + 12);
   const bh = size * 0.9 + (sub ? size * 0.62 * 1.25 + 6 : 0);
-  if (from && to && from[0] > x - 20 && from[0] < x + bw + 20 && from[1] > y - 20 && from[1] < y + bh + 20) {
-    const dxx = to[0] - (x + bw / 2);
-    const dyy = to[1] - (y + bh / 2);
-    from = Math.abs(dyy) * bw >= Math.abs(dxx) * bh
-      ? [Math.max(x + 30, Math.min(from[0], x + bw - 30)), dyy > 0 ? y + bh + 34 : y - 34]
-      : [dxx > 0 ? x + bw + 40 : x - 40, Math.max(y + 20, Math.min(from[1], y + bh - 20))];
-  }
+  // The arrow leaves from whichever side of the words faces its target - top, bottom, either side or a corner -
+  // and bows away from them; the tip stops just short of the thing (producer 2026-11-23: arrows always came out of
+  // the left of the words and stabbed faces). `from` is ignored: the start follows from the words and `to`.
   let arrow: React.ReactNode = null;
-  if (from && to) {
-    const dx = to[0] - from[0];
-    const dy = to[1] - from[1];
-    const len = Math.hypot(dx, dy) || 1;
-    const cx = (from[0] + to[0]) / 2 - (dy / len) * bend;
-    const cy = (from[1] + to[1]) / 2 + (dx / len) * bend;
-    const a = Math.atan2(to[1] - cy, to[0] - cx);
+  const start = noteArrowStart(x, y, bw, bh, to);
+  if (start && to) {
+    const L = Math.hypot(to[0] - start[0], to[1] - start[1]) || 1;
+    const stop = Math.min(18, L * 0.12);
+    const e: [number, number] = [to[0] - ((to[0] - start[0]) / L) * stop, to[1] - ((to[1] - start[1]) / L) * stop];
+    const [cx, cy] = noteArrowBend(start, e, x + bw / 2, y + bh / 2, bend);
+    const a = Math.atan2(e[1] - cy, e[0] - cx);
     const h = 30;
     arrow = (
       <>
         {[[rim, w + 6], [arrowCol, w]].map(([c, sw], i) => (
           <React.Fragment key={i}>
-            <path d={`M${from[0]} ${from[1]} Q ${cx} ${cy} ${to[0]} ${to[1]}`} fill="none" stroke={c as string} strokeWidth={sw as number} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
+            <path d={`M${start[0]} ${start[1]} Q ${cx} ${cy} ${e[0]} ${e[1]}`} fill="none" stroke={c as string} strokeWidth={sw as number} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - pa} />
             <path
-              d={`M${to[0] - h * Math.cos(a - 0.5)} ${to[1] - h * Math.sin(a - 0.5)} L${to[0]} ${to[1]} L${to[0] - h * Math.cos(a + 0.5)} ${to[1] - h * Math.sin(a + 0.5)}`}
+              d={`M${e[0] - h * Math.cos(a - 0.5)} ${e[1] - h * Math.sin(a - 0.5)} L${e[0]} ${e[1]} L${e[0] - h * Math.cos(a + 0.5)} ${e[1] - h * Math.sin(a + 0.5)}`}
               fill="none" stroke={c as string} strokeWidth={sw as number} strokeLinecap="round" strokeLinejoin="round" opacity={pa > 0.95 ? 1 : 0}
             />
           </React.Fragment>

@@ -51,6 +51,29 @@ def jsnum(v):
     return str(int(v)) if v == int(v) else repr(v)
 
 
+def arrow_start(box, to):
+    """where HandNote's arrow leaves its words (noteArrowStart in Print.tsx)"""
+    if not to:
+        return None
+    x0, y0, x1, y1 = box
+    bx, by, bw, bh = (x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0
+    dx, dy = to[0] - bx, to[1] - by
+    k = min((bw / 2 + 26) / max(abs(dx), 1e-3), (bh / 2 + 26) / max(abs(dy), 1e-3))
+    return (bx + dx * k, by + dy * k) if k < 0.85 else None
+
+
+def arrow_bend(s, e, box, bend):
+    """the curve's control point, bowed away from the words (noteArrowBend in Print.tsx)"""
+    bx, by = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    ln = max(1.0, ((e[0] - s[0]) ** 2 + (e[1] - s[1]) ** 2) ** 0.5)
+    nx, ny = -(e[1] - s[1]) / ln, (e[0] - s[0]) / ln
+    amt = min(bend, ln * 0.22)
+    mx, my = (s[0] + e[0]) / 2, (s[1] + e[1]) / 2
+    d = lambda k: (mx + nx * amt * k - bx) ** 2 + (my + ny * amt * k - by) ** 2
+    k = 1 if d(1) >= d(-1) else -1
+    return mx + nx * amt * k, my + ny * amt * k
+
+
 items = []
 for f in sorted((ROOT / 'src/timeline').rglob('*.tsx')):
     src = f.read_text(encoding='utf8')
@@ -64,7 +87,7 @@ for f in sorted((ROOT / 'src/timeline').rglob('*.tsx')):
         sub = raw(at_, 'sub') or ''
         if kind == 'HandNote':
             z = num(at_, 'size', 120)
-            w = max(len(text) * z * 0.4, len(sub) * z * 0.62 * 0.4 + 12)
+            w = max(len(text) * z * 0.33, len(sub) * z * 0.62 * 0.33 + 12)  # Kalam ~0.33 em a letter
             h = z * 0.9 + (z * 0.62 * 1.25 + 6 if sub else 0)
             box = (x, y, x + w, y + h)
         else:
@@ -131,11 +154,11 @@ for it in items:
         if lum > 0.33 or max(cells) > 0.55:
             e['soft'] = 'grad'
             note += ' + soft dark patch'
-    if it['frm'] and it['to']:
-        (fx, fy), (tx, ty) = it['frm'], it['to']
-        dx, dy = tx - fx, ty - fy
-        ln = max(1.0, (dx * dx + dy * dy) ** 0.5)
-        cx, cy = (fx + tx) / 2 - dy / ln * it['bend'], (fy + ty) / 2 + dx / ln * it['bend']
+    st = arrow_start(it['box'], it['to']) if it['kind'] == 'HandNote' else it['frm']
+    if st and it['to']:
+        # same path as HandNote draws: from the side of the words facing the target, bowed away from them
+        (fx, fy), (tx, ty) = st, it['to']
+        cx, cy = arrow_bend(st, it['to'], it['box'], it['bend'])
         way = []
         for i in range(5, 25):  # the first fifth sits by the words, which the note moves clear of
             u = i / 24
