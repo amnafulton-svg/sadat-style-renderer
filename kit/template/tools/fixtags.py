@@ -15,6 +15,7 @@ import re
 ap = argparse.ArgumentParser()
 ap.add_argument('--root', default='.')
 ap.add_argument('--dry-run', action='store_true')
+ap.add_argument('--tapes', action='store_true', help="also turn LabelTapes under uncaptioned prints into each print's tag= caption")
 a = ap.parse_args()
 ROOT = pathlib.Path(a.root)
 
@@ -57,3 +58,65 @@ for p in sorted((ROOT / 'src/timeline/parts').glob('*.tsx')):
     if out and not a.dry_run:
         open(p, 'w', encoding='utf8').write(''.join(out) + s[last:])
 print(f'{moved} free tags moved onto their print' + (' (dry run)' if a.dry_run else ''))
+
+
+
+# --tapes: LabelTapes under a row of prints lay on each other when each tape was wider than the gap between prints
+# (JP Morgan 2026-11-23, validate errors on it). Each tape under an uncaptioned print becomes its print's caption; PrintTag shrinks (or wraps) it to the print's width, so neighbouring captions never meet.
+TAPE = re.compile(r'[ \t]*<LabelTape\b((?:[^>"{]|"[^"]*"|\{[^{}]*\})*?)/>[ \t]*\n?', re.S)
+
+
+def num(attrs, k):
+    v = val(attrs, k)
+    try:
+        return float(v) if v is not None else None
+    except ValueError:
+        return None
+
+
+taped = 0
+for p in (sorted((ROOT / 'src/timeline/parts').glob('*.tsx')) if a.tapes else []):
+    s = open(p, encoding='utf8').read()
+    out, last = [], 0
+    for sm in SCENE.finditer(s):
+        b = sm.group(0)
+        nb, n0 = b, taped
+        while True:
+            hit = None
+            for tm in TAPE.finditer(nb):
+                t = tm.group(1)
+                text, lx, ly = val(t, 'text'), num(t, 'x'), num(t, 'y')
+                if not text or lx is None or ly is None:
+                    continue
+                best = None
+                for pm in PRINT.finditer(nb):
+                    pa = pm.group(1)
+                    px, py, pw = num(pa, 'x'), num(pa, 'y'), num(pa, 'w')
+                    if None in (px, py, pw) or 'tag={{' in pa or abs(lx - px) >= pw / 2 or not 0 < ly - py < 450:
+                        continue
+                    d = abs(lx - px) + abs(ly - py)
+                    if not best or d < best[0]:
+                        best = (d, pm, pw)
+                if best:
+                    hit = (tm, best[1], best[2], text, val(t, 'at'))
+                    break
+            if not hit:
+                break
+            tm, pm, pw, text, at = hit
+            parts = [f'line1: "{text}"'] + ([f'at: {at}'] if at else [])
+            ins = ' tag={{' + ', '.join(parts) + '}}'
+            if tm.start() > pm.end(1):  # remove the tape first so the print's offsets stay valid
+                nb = nb[:tm.start()] + nb[tm.end():]
+                nb = nb[:pm.end(1)] + ins + nb[pm.end(1):]
+            else:
+                nb = nb[:pm.end(1)] + ins + nb[pm.end(1):]
+                nb = nb[:tm.start()] + nb[tm.end():]
+            taped += 1
+            print(f'{p.name} {sm.group(1)}: LabelTape "{text}" -> print caption')
+        if taped > n0:
+            out.append(s[last:sm.start()] + nb)
+            last = sm.end()
+    if out and not a.dry_run:
+        open(p, 'w', encoding='utf8').write(''.join(out) + s[last:])
+if a.tapes:
+    print(f'{taped} label tapes moved onto their print' + (' (dry run)' if a.dry_run else ''))

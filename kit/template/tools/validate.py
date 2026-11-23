@@ -572,6 +572,61 @@ for sid, fr, to, en, b in scenes:
             E(f'{sid}: the name {names} under {src.group(1)} runs off the {"left" if left < 20 else "right"} edge: '
               f'move the print in or shorten the name')
 
+# labels on screen together never lie on each other (producer, JP Morgan 2026-11-23: five free LabelTapes under five
+# title pages at 2:10 were 420 px wide for prints 350 px apart, so "HOUSE OF COMMONS" covered "FEDERAL RESERVE").
+# Boxes are estimates from text length and size; labels leaving on until=/out= count only while shown.
+_LBL = re.compile(r'<(LabelTape|BlackTag|Highlight)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*?)/?>', re.S)
+
+
+def _num(a, k):
+    m = re.search(rf'\b{k}=\{{\s*(-?[\d.]+)\s*\}}', a)
+    return float(m.group(1)) if m else None
+
+
+def _label_box(kind, la):
+    """(text, cx, cy, w, h) of a free label as drawn, or None when it has no x/y"""
+    lx, ly = _num(la, 'x'), _num(la, 'y')
+    if lx is None or ly is None:
+        return None
+    lt = next((m.group(1) for k in ('text', 'line1') for m in [re.search(rf'\b{k}="([^"]*)"', la)] if m), '') \
+        or _q(la, 'text') or _q(la, 'line1')
+    l2 = (re.search(r'\bline2="([^"]*)"', la) or [None, ''])[1] or _q(la, 'line2') or ''
+    sz = _num(la, 'size')
+    if kind == 'LabelTape':
+        sz = sz or 40
+        w, h = len(lt) * (sz * 0.6 + 4) + 52, sz * 1.2 + 20
+        w = min(w, 1824)
+        lx = max(48 + w / 2, min(lx, 1872 - w / 2))  # LabelTape keeps itself inside the frame
+    elif kind == 'Highlight':
+        sz = sz or 64
+        w, h = len(lt) * sz * 0.55 + 40, sz * 1.3
+    else:  # BlackTag starts at its x/y
+        sz = sz or 38
+        w, h = max(len(lt) * sz * 0.55, len(l2) * sz * 0.32) + 56, sz * 1.25 + 28 + (sz * 0.7 if l2 else 0)
+        lx, ly = lx + w / 2, ly + h / 2
+    anc = re.search(r'\banchor="(left|right)"', la)
+    if anc and kind in ('LabelTape', 'Highlight'):
+        lx += w / 2 if anc.group(1) == 'left' else -w / 2
+    return lt, lx, ly, w, h
+
+
+for sid, fr, to, en, b in scenes:
+    labs = []
+    for lm in _LBL.finditer(b):
+        bx = _label_box(lm.group(1), lm.group(2))
+        if bx:
+            at, un = _num(lm.group(2), 'at'), _num(lm.group(2), 'until') or _num(lm.group(2), 'out')  # Highlight/BigSerif leave on out=
+            labs.append((lm.group(1), bx, at if at is not None else fr, un if un is not None else to))
+    for i in range(len(labs)):
+        for j in range(i + 1, len(labs)):
+            (k1, (t1, x1, y1, w1, h1), a1, u1), (k2, (t2, x2, y2, w2, h2), a2, u2) = labs[i], labs[j]
+            if max(a1, a2) >= min(u1, u2):
+                continue  # never on screen together
+            ox, oy = (w1 + w2) / 2 - abs(x1 - x2), (h1 + h2) / 2 - abs(y1 - y2)
+            if ox > 4 and oy > 4:
+                E(f'{sid}: {k1} "{t1}" and {k2} "{t2}" lie on each other ({ox:.0f} x {oy:.0f} px): move one, set a '
+                  f'smaller size, or (labels naming prints) make each the print\'s tag= (it fits its print\'s width) - python tools/fixtags.py --tapes')
+
 # leaders' speech inserts (src/lib/speeches.json, tools/speech.py): the voice-over stops at a part break, never in a
 # sentence (producer 2026-10-31: "the voice over splited into parts so it doesnt sound like its cut from the middle")
 _spf = ROOT / 'src/lib/speeches.json'

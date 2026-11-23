@@ -210,6 +210,9 @@ A transition used for decoration means nothing, so most changes are hard cuts.
   on a caption that would run off the frame (raise the print or make it smaller). `python tools/fixtags.py`
   moves every free tag onto its print in one go. Free BlackTags stay for
   FullPhoto, film and boards of several prints, placed under the picture they name.
+  In a row of prints, keep each label narrower than the gap to the next print (JP Morgan 2026-11-23: five tapes
+  wider than their prints lay on each other). validate errors on any two labels on screen together that touch;
+  `python tools/fixtags.py --tapes` turns tapes under prints into each print's `tag=`, which shrinks to its print.
 - **HOUSE: on a full-screen photo, write the note on the picture.** When a `FullPhoto` shows the one thing the
   line names, `HandNote` writes its name by hand on a quiet part of the picture at the spoken word, draws an arrow
   to it or an orange ring around it, and adds the place and date under it in the same pen:

@@ -107,7 +107,7 @@ export const PhotoPrint: React.FC<{
           ))}
         </div>
       )}
-      {tag && <PrintTag {...tag} at={tag.at ?? at + 0.2} />}
+      {tag && <PrintTag {...tag} at={tag.at ?? at + 0.2} room={w} />}
       {hand && <PrintHand {...hand} side={hand.side ?? (x < 960 ? 'right' : 'left')} room={((hand.side ?? (x < 960 ? 'right' : 'left')) === 'right' ? 1920 - (x + w / 2) : x - w / 2) - 150} />}
     </div>
   );
@@ -277,10 +277,19 @@ const torn = (text: string) => {
 /** the caption of one print, stuck across its bottom-left edge (60 % on the print, 40 % below), so it always sits
  *  under the photo it names and moves with it (producer, cannabis 2026-10-25: "why the text in the black box is
  *  not under the image?": free BlackTags were placed by hand and landed across the frame from their print) */
-const PrintTag: React.FC<{at: number; line1: string; line2?: string; size?: number}> = ({at, line1, line2, size = 38}) => {
+// rough serif widths per character (em): capitals are wide, so an all-caps caption needs ~0.72 em a letter
+const serifEm = (t: string) => [...t].reduce((n, c) => n + (c === ' ' ? 0.3 : /[A-Z0-9]/.test(c) ? 0.72 : /[a-z]/.test(c) ? 0.52 : 0.45), 0);
+
+/** the print's black caption. It never runs past its own print (JP Morgan 2026-11-23: captions wider than the print
+ *  slid under the next one): the type shrinks to fit the print's width, and below 22 px it wraps onto two lines. */
+const PrintTag: React.FC<{at: number; line1: string; line2?: string; size?: number; room: number}> = ({at, line1, line2, size = 38, room}) => {
   const cue = useCue();
   const {frame} = useScene();
   const p = prog(frame, cue(at) - 3, 8);
+  const space = room - 28 - 44 - 10; // left offset, padding, a little air before the print's right edge
+  const fit = Math.min(size, space / Math.max(serifEm(line1), (line2 ? serifEm(line2) * 0.58 : 0), 1));
+  const wrap = fit < 22;
+  size = wrap ? 22 : Math.floor(fit);
   return (
     <div
       style={{
@@ -295,7 +304,7 @@ const PrintTag: React.FC<{at: number; line1: string; line2?: string; size?: numb
         zIndex: 2,
       }}
     >
-      <div style={{fontFamily: FONT.serif, color: '#f4f0e6', fontSize: size, lineHeight: 1.1, whiteSpace: 'nowrap'}}>{line1}</div>
+      <div style={{fontFamily: FONT.serif, color: '#f4f0e6', fontSize: size, lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', maxWidth: wrap ? space : undefined}}>{line1}</div>
       {line2 && <div style={{fontFamily: FONT.serif, fontStyle: 'italic', color: '#bdb6a6', fontSize: size * 0.58, marginTop: 4, whiteSpace: 'nowrap'}}>{line2}</div>}
     </div>
   );
