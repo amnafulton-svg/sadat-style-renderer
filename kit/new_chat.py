@@ -30,6 +30,9 @@ ap.add_argument('--dest', default=str(Path.home() / 'sadat-chat'))
 ap.add_argument('--no-install', action='store_true')
 ap.add_argument('--chart-look', choices=('A', 'B', 'C'), help='force this chart design (default: the next one in turn, kit/chartlook.py)')
 ap.add_argument('--no-words', action='store_true')
+ap.add_argument('--channel', default='', help='channel id (Classic Studio channels.json): the mood of the video\'s '
+                '3 GPT backgrounds, kit/bgfamilies.json')
+ap.add_argument('--no-backgrounds', action='store_true', help='keep the old kit textures (no GPT backgrounds)')
 ap.add_argument('--editing', choices=('solo', 'sections'), default='solo',
                 help='solo: this chat edits the whole video, helpers only fetch media (Chipyong-ni, ~$45); '
                      'sections: the chat may hand sections to subagent editors (cannabis video, ~$95)')
@@ -97,6 +100,12 @@ shutil.copy2(script, proj / 'script.md')
 sys.path.insert(0, str(KIT))
 from chartlook import assign as assign_chart_look  # noqa: E402
 print('chart design', assign_chart_look(proj, proj.parent, a.chart_look))
+if not a.no_backgrounds:  # 3 GPT backgrounds for this video, made while npm/words/the chat's film search run (kit/bgmake.py)
+    (proj / '_work').mkdir(exist_ok=True)
+    subprocess.Popen([str(PY), str(KIT / 'bgmake.py'), str(proj), '--channel', a.channel], cwd=proj,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=open(proj / '_work/bgmake.err', 'ab'),
+                     start_new_session=True)
+    print('backgrounds: GPT is making 3 in the background (_work/backgrounds/bgmake.log)')
 narr = proj / 'public/audio/narration.mp3'
 if voice.suffix.lower() == '.mp3':
     shutil.copy2(voice, narr)
