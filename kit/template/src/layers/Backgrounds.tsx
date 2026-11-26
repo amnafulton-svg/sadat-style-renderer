@@ -4,7 +4,7 @@
 // - Paper: cream stock behind label-tape lists and date tags.
 // Each one drifts and carries a soft moving spotlight so a 10–30 s hold never looks frozen.
 // Every new video has its own 3 backgrounds made by GPT for its topic inside the channel mood (kit/bgmake.py ->
-// src/lib/bgset.json, producer 2026-11-25): ConcreteWall and Desk use the two dark ones, taking turns every 45 s of
+// src/lib/bgset.json, producer 2026-11-25): ConcreteWall and Desk use the dark ones (3 since 2026-11-26), taking turns every 45 s of
 // the timeline so the video never sits on one wall; Paper uses the light one. Without a set: the old textures.
 import React from 'react';
 import {AbsoluteFill, Img, interpolate, staticFile} from 'remotion';

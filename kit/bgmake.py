@@ -89,37 +89,38 @@ for f in sorted(proj.parent.glob('*/src/lib/bgset.json'), key=lambda f: f.stat()
         break
 RECENT = '\n'.join(f'- {r}' for r in recent) or '- (none yet)'
 
-PLAN = f"""You choose 3 BACKGROUND surfaces for one history documentary video. Do not make any image now; reply with JSON only.
+PLAN = f"""You choose 3 BACKGROUNDS for one history documentary video. Do not make any image now; reply with JSON only.
 
 Video (folder name): {topic}
 Opening of its script:
 {script[:1500]}
 
-The channel's family mood (every background must fit it): {family}
+The channel's family mood: {family}
+Take only its COLOURS and light mood from that line, not its materials.
 
-Photo prints, labels and charts sit on top of these backgrounds, so each is a plain flat SURFACE or material that
-fills the frame (a wall, cloth, paper, wood, metal, stone, leather...), chosen to match the energy, era and place of
-this topic. Never an object, scene, person, flag, map with names, symbol or text from the story.
-Make them specific to THIS video, not generic for the channel: the material of its own era, place and world (for a
-1930s gold story e.g. vault-door steel, a bullion-room brass plate, an assay-office paper; for a Roman story plaster
-and stone of that time), so the next video on this channel gets clearly different ones.
-- "dark1" and "dark2": two different dark-toned surfaces (white labels must read on them).
-- "light": one light-toned surface (dark text must read on it), also from this topic's own world, and NOT a plain
-  ivory, cream or beige paper (every video had that): e.g. pale limestone, whitewashed plaster, bleached linen, pale
-  birch or ash wood, celadon glaze, pale blue-grey or grey-green paper, frosted glass, light sandstone. Pale and muted,
-  never yellow.
-All three: muted, not saturated colours (photos must stay the most colourful thing), never near-black.
-The last videos already used these, so pick clearly different materials and colours:
+Style (producer 2026-11-26): minimal, professional motion-graphics backgrounds, like the clean graphic beds of a
+high-end broadcast documentary: smooth soft gradient, soft light falloff toward the edges, very fine grain. Nothing
+photographic, no objects, no symbols, no text. Photo prints, labels and charts sit on top in the middle, so the
+centre stays calm. Each dark one has its own fixed texture (producer's choice):
+- "dark1": BLUEPRINT GRID texture: thin fine grid lines (major and minor squares) over the dark gradient.
+- "dark2": MATTE PAPER texture: a dark matte paper with fine, even, soft paper grain (no fibres, stains or folds).
+- "dark3": HALFTONE texture: a fine halftone dot pattern, dots growing toward one edge or corner and fading out.
+- "light": one light background (dark text must read on it): smooth gradient, fine grain, at most a very faint dot
+  grid; pale grey, blue-grey, grey-green or stone. Never pink, rose, lilac, yellow or cream.
+For each, choose only the colours, so they suit the energy, era and place of THIS topic inside the family mood.
+The three darks: three clearly different hues (white labels must read on them), not near-black; at most ONE of them
+purple, plum or aubergine. All four: muted, desaturated (the photos must stay the most colourful thing).
+The last videos already used these, so pick clearly different colours:
 {RECENT}
-The three must look clearly different from each other.
-Reply with ONLY: {{"dark1": "<surface, colour, light>", "dark2": "<...>", "light": "<...>"}}"""
+Reply with ONLY: {{"dark1": "<colours + gradient; blueprint grid>", "dark2": "<colours; matte paper>", "dark3": "<colours; halftone>", "light": "<...>"}}"""
 
-IMG = """Use the imagegen skill (the built-in image_gen tool, not the CLI). Make exactly ONE image, 16:9 landscape,
-photorealistic, very high detail.
-It is an empty BACKGROUND for a history documentary: photo prints and name tags will be placed on top of it in the
-middle, so the centre must stay calm, even and uncluttered, with no objects, no text, no letters, no numbers, no logos,
-no people, no frames, no symbols. Detail and interest only in the texture and in soft lighting falling off toward the
-edges (gentle vignette). Shot straight on, flat surface filling the whole frame, no perspective, no horizon.
+IMG = """Use the imagegen skill (the built-in image_gen tool, not the CLI). Make exactly ONE image, 16:9 landscape.
+It is an empty, minimal, professional MOTION-GRAPHICS BACKGROUND for a high-end history documentary (a clean digital
+graphic bed, like broadcast design, NOT a photo of a material). Photo prints and name tags will be placed on top in the
+middle, so the centre must stay clean, smooth and uncluttered. Smooth soft gradient and gentle light falloff toward
+the edges, a very fine even grain, the texture fine, even and quiet (clearly there, never busy). No objects, no
+text, no letters, no numbers, no logos, no people, no frames, no symbols, no 3D shapes, no lens flares, no bokeh.
+Flat, straight on.
 Overall tone: {tone}.
 Background: {desc}
 This runs unattended: never ask anything. When done, reply with the image file path."""
@@ -148,7 +149,7 @@ def has_text(path: Path) -> str:
 
 def make(slot: str, desc: str) -> dict | None:
     tone = ('light, pale, bright, muted colour (not yellow, not cream)' if slot == 'light' else
-            'medium-dark and low-key, muted desaturated colour, the texture clearly visible everywhere (not black, not crushed)')
+            'dark and low-key, muted desaturated colour, smooth (not pure black, not crushed)')
     for attempt in (1, 2):
         since = time.time()
         try:
@@ -201,7 +202,7 @@ for attempt in (1, 2):
         msg, _ = codex(PLAN, f'plan_{attempt}', write=False)
         m = re.search(r'\{.*\}', msg, re.S)
         plan = json.loads(m.group(0)) if m else None
-        if plan and all(isinstance(plan.get(k), str) and plan[k].strip() for k in ('dark1', 'dark2', 'light')):
+        if plan and all(isinstance(plan.get(k), str) and plan[k].strip() for k in ('dark1', 'dark2', 'dark3', 'light')):
             break
         plan = None
     except Exception as e:  # noqa: BLE001
@@ -210,9 +211,10 @@ if not plan:
     log('no plan: the video keeps the kit textures')
     sys.exit(1)
 log('plan', json.dumps(plan))
-with ThreadPoolExecutor(3) as ex:
-    res = dict(zip(('dark1', 'dark2', 'light'), ex.map(lambda k: make(k, plan[k]), ('dark1', 'dark2', 'light'))))
-dark = [res[k] for k in ('dark1', 'dark2') if res[k]]
+SLOTS = ('dark1', 'dark2', 'dark3', 'light')
+with ThreadPoolExecutor(4) as ex:
+    res = dict(zip(SLOTS, ex.map(lambda k: make(k, plan[k]), SLOTS)))
+dark = [res[k] for k in SLOTS[:3] if res[k]]
 bgset = {'channel': a.channel, 'family': family, 'dark': dark, 'light': res['light']}
 tmp = proj / 'src/lib/bgset.json.tmp'
 tmp.write_text(json.dumps(bgset, indent=1) + '\n', encoding='utf8')
