@@ -105,6 +105,8 @@ centre stays calm. Each dark one has its own fixed texture (producer's choice):
 - "dark1": BLUEPRINT GRID texture: thin fine grid lines (major and minor squares) over the dark gradient.
 - "dark2": MATTE PAPER texture: a dark matte paper with fine, even, soft paper grain (no fibres, stains or folds).
 - "dark3": HALFTONE texture: a fine halftone dot pattern, dots growing toward one edge or corner and fading out.
+  Its colour is NEVER brown, tan, umber, amber, rust, copper or orange (producer 2026-11-26): e.g. slate, graphite,
+  navy, teal, deep green, steel blue, muted oxblood.
 - "light": one light background (dark text must read on it): smooth gradient, fine grain, at most a very faint dot
   grid; pale grey, blue-grey, grey-green or stone. Never pink, rose, lilac, yellow or cream.
 For each, choose only the colours, so they suit the energy, era and place of THIS topic inside the family mood.
