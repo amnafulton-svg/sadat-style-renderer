@@ -25,12 +25,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from PIL import Image, ImageStat
+import numpy as np
+from PIL import Image, ImageEnhance, ImageStat
 
 KIT = Path(__file__).resolve().parent
 OCR_PY = Path.home() / 'yt/.venv-ocr/bin/python'
 GEN = Path(os.environ.get('CODEX_HOME', Path.home() / '.codex')) / 'generated_images'
 TIMEOUT = 900
+# colour strength on screen (mean max-min of RGB) above these looked loud (Emperor red silk 115, walnut 70; calm ones
+# 6-43; ivory papers 59-83 read yellow, the grey-blue one 25), producer 2026-11-26: fix loud colours + the light paper
+DARK_CHROMA, LIGHT_CHROMA = 45.0, 35.0
 DARK_TARGET, LIGHT_TARGET = 45.0, 215.0  # mean grey after dim; dark kept low: colour surfaces look brighter than grey concrete
 
 ap = argparse.ArgumentParser()
@@ -70,6 +74,20 @@ fams = json.loads((KIT / 'bgfamilies.json').read_text('utf8'))
 family = fams.get(a.channel) or fams['default']
 script = (proj / 'script.md').read_text('utf8', 'replace') if (proj / 'script.md').exists() else ''
 topic = proj.name.replace('-', ' ')
+recent = []  # what the last videos already had, so the next one picks different materials
+for f in sorted(proj.parent.glob('*/src/lib/bgset.json'), key=lambda f: f.stat().st_mtime, reverse=True):
+    if f.parents[2] == proj:
+        continue
+    try:
+        b = json.loads(f.read_text('utf8'))
+    except Exception:  # noqa: BLE001
+        continue
+    descs = [x.get('desc', '') for x in (b.get('dark') or []) + [b.get('light') or {}] if x.get('desc')]
+    if descs:
+        recent.append('; '.join(d[:90] for d in descs))
+    if len(recent) >= 8:
+        break
+RECENT = '\n'.join(f'- {r}' for r in recent) or '- (none yet)'
 
 PLAN = f"""You choose 3 BACKGROUND surfaces for one history documentary video. Do not make any image now; reply with JSON only.
 
@@ -86,7 +104,13 @@ Make them specific to THIS video, not generic for the channel: the material of i
 1930s gold story e.g. vault-door steel, a bullion-room brass plate, an assay-office paper; for a Roman story plaster
 and stone of that time), so the next video on this channel gets clearly different ones.
 - "dark1" and "dark2": two different dark-toned surfaces (white labels must read on them).
-- "light": one light-toned surface (dark text must read on it), like a paper or pale stock of the period.
+- "light": one light-toned surface (dark text must read on it), also from this topic's own world, and NOT a plain
+  ivory, cream or beige paper (every video had that): e.g. pale limestone, whitewashed plaster, bleached linen, pale
+  birch or ash wood, celadon glaze, pale blue-grey or grey-green paper, frosted glass, light sandstone. Pale and muted,
+  never yellow.
+All three: muted, not saturated colours (photos must stay the most colourful thing), never near-black.
+The last videos already used these, so pick clearly different materials and colours:
+{RECENT}
 The three must look clearly different from each other.
 Reply with ONLY: {{"dark1": "<surface, colour, light>", "dark2": "<...>", "light": "<...>"}}"""
 
@@ -123,8 +147,8 @@ def has_text(path: Path) -> str:
 
 
 def make(slot: str, desc: str) -> dict | None:
-    tone = ('light, pale, bright' if slot == 'light' else
-            'medium-dark and low-key, but the texture and colour clearly visible everywhere (not black, not crushed)')
+    tone = ('light, pale, bright, muted colour (not yellow, not cream)' if slot == 'light' else
+            'medium-dark and low-key, muted desaturated colour, the texture clearly visible everywhere (not black, not crushed)')
     for attempt in (1, 2):
         since = time.time()
         try:
@@ -155,9 +179,18 @@ def make(slot: str, desc: str) -> dict | None:
                 log(slot, 'try', attempt, f'wrong brightness for a dark background (mean {mean:.0f})')
                 continue
             dim = max(-0.45, min(0.6, 1 - DARK_TARGET / mean))  # never brighten more than 1.45x (noise, loud colour)
-        shutil.move(tmp, dst)
-        log(slot, 'OK', f'mean {mean:.0f} dim {dim:.2f}', desc[:100])
-        return {'file': dst.name, 'dim': round(dim, 3), 'desc': desc}
+        # bake the brightness into the file and tame loud colour, so the file is what the video shows (dim 0)
+        arr = np.clip(np.asarray(im, dtype=np.float32) * (1 - dim), 0, 255)
+        chroma = float((arr.max(2) - arr.min(2)).mean())
+        cap = LIGHT_CHROMA if slot == 'light' else DARK_CHROMA
+        out_im = Image.fromarray(arr.astype(np.uint8))
+        if chroma > cap:
+            out_im = ImageEnhance.Color(out_im).enhance(cap / chroma)
+        out_im.save(dst, quality=92)
+        tmp.unlink(missing_ok=True)
+        log(slot, 'OK', f'mean {mean:.0f} brightness x{1 - dim:.2f} colour {chroma:.0f}' +
+            (f' -> {cap:.0f}' if chroma > cap else ''), desc[:100])
+        return {'file': dst.name, 'dim': 0, 'desc': desc}
     return None
 
 
